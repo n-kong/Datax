@@ -17,10 +17,7 @@ import com.alibaba.datax.plugin.rdbms.reader.util.OriginalConfPretreatmentUtil;
 import com.alibaba.datax.plugin.rdbms.reader.util.PreCheckTask;
 import com.alibaba.datax.plugin.rdbms.reader.util.ReaderSplitUtil;
 import com.alibaba.datax.plugin.rdbms.reader.util.SingleTableSplitUtil;
-import com.alibaba.datax.plugin.rdbms.util.DBUtil;
-import com.alibaba.datax.plugin.rdbms.util.DBUtilErrorCode;
-import com.alibaba.datax.plugin.rdbms.util.DataBaseType;
-import com.alibaba.datax.plugin.rdbms.util.RdbmsException;
+import com.alibaba.datax.plugin.rdbms.util.*;
 import com.google.common.collect.Lists;
 
 import org.apache.commons.lang3.StringUtils;
@@ -259,12 +256,12 @@ public class CommonRdbmsReader {
                             rawData = new String((rs.getBytes(i) == null ? EMPTY_CHAR_ARRAY : 
                                 rs.getBytes(i)), mandatoryEncoding);
                         }
-                        record.addColumn(new StringColumn(rawData));
+                        record.addColumn(new StringColumn(RdbmsStringUtil.replaceBlank(rawData)));
                         break;
 
                     case Types.CLOB:
                     case Types.NCLOB:
-                        record.addColumn(new StringColumn(rs.getString(i)));
+                        record.addColumn(new StringColumn(RdbmsStringUtil.replaceBlank(rs.getString(i))));
                         break;
 
                     case Types.SMALLINT:
@@ -276,7 +273,7 @@ public class CommonRdbmsReader {
 
                     case Types.NUMERIC:
                     case Types.DECIMAL:
-                        record.addColumn(new DoubleColumn(rs.getString(i)));
+                        record.addColumn(new DoubleColumn(RdbmsStringUtil.replaceBlank(rs.getString(i))));
                         break;
 
                     case Types.FLOAT:
@@ -321,7 +318,7 @@ public class CommonRdbmsReader {
                         if(rs.getObject(i) != null) {
                             stringData = rs.getObject(i).toString();
                         }
-                        record.addColumn(new StringColumn(stringData));
+                        record.addColumn(new StringColumn(RdbmsStringUtil.replaceBlank(stringData)));
                         break;
 
                     default:

@@ -4,6 +4,7 @@ import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.plugin.RecordReceiver;
 import com.alibaba.datax.common.spi.Writer;
 import com.alibaba.datax.common.util.Configuration;
+import com.alibaba.datax.core.util.DateUtil;
 import com.alibaba.datax.plugin.unstructuredstorage.writer.UnstructuredStorageWriterUtil;
 
 import org.apache.commons.io.FileUtils;
@@ -18,12 +19,7 @@ import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Created by haiwei.luo on 14-9-17.
@@ -235,13 +231,13 @@ public class TxtFileWriter extends Writer {
                         .clone();
 
                 String fullFileName = null;
-                fileSuffix = UUID.randomUUID().toString().replace('-', '_');
-                fullFileName = String.format("%s__%s", filePrefix, fileSuffix);
+                String date = DateUtil.formatDate(new Date());
+                fullFileName = String.format("%s_%s_%s-%s", date, filePrefix, System.currentTimeMillis(), numFormat(i, 5)).toUpperCase();
                 while (allFiles.contains(fullFileName)) {
-                    fileSuffix = UUID.randomUUID().toString().replace('-', '_');
-                    fullFileName = String.format("%s__%s", filePrefix,
-                            fileSuffix);
+                    fileSuffix = UUID.randomUUID().toString().replace('-', 'a');
+                    fullFileName = String.format("%s_%s_%s-%s", date, filePrefix, System.currentTimeMillis(), fileSuffix).toUpperCase();
                 }
+                fullFileName = fullFileName + ".nb";
                 allFiles.add(fullFileName);
 
                 splitedTaskConfig
@@ -257,6 +253,10 @@ public class TxtFileWriter extends Writer {
             return writerSplitConfigs;
         }
 
+        public String numFormat(int inNum, int length) {
+            return String.format("%0" + length + "d", inNum);
+        }
+
     }
 
     public static class Task extends Writer.Task {
@@ -266,12 +266,15 @@ public class TxtFileWriter extends Writer {
 
         private String path;
 
+        private String finalPath;
+
         private String fileName;
 
         @Override
         public void init() {
             this.writerSliceConfig = this.getPluginJobConf();
             this.path = this.writerSliceConfig.getString(Key.PATH);
+            this.finalPath = this.writerSliceConfig.getString(Key.FINAL_PATH);
             this.fileName = this.writerSliceConfig
                     .getString(com.alibaba.datax.plugin.unstructuredstorage.writer.Key.FILE_NAME);
         }
@@ -288,8 +291,9 @@ public class TxtFileWriter extends Writer {
             LOG.info(String.format("write to file : [%s]", fileFullPath));
 
             OutputStream outputStream = null;
+            File newFile = null;
             try {
-                File newFile = new File(fileFullPath);
+                newFile = new File(fileFullPath);
                 newFile.createNewFile();
                 outputStream = new FileOutputStream(newFile);
                 UnstructuredStorageWriterUtil.writeToStream(lineReceiver,
@@ -305,6 +309,8 @@ public class TxtFileWriter extends Writer {
                         String.format("无法创建待写文件 : [%s]", this.fileName), ioe);
             } finally {
                 IOUtils.closeQuietly(outputStream);
+                String name = newFile.getName();
+                newFile.renameTo(new File(this.finalPath + "/" + name));
             }
             LOG.info("end do write");
         }

@@ -1,0 +1,38 @@
+{
+    "job": {
+        "setting": {
+            "speed": {
+                "byte":10485760
+            },
+            "errorLimit": {
+                "record": 0,
+                "percentage": 0.02
+            }
+        },
+        "content": [
+            {
+                "reader": {
+                    "name": "txtfilereader",
+                    "parameter": {
+                        "path": [
+                            "aaa_file\\read"
+                        ],
+                        "encoding": "UTF-8",
+                        "column": ["*"],
+                        "fieldDelimiter": ",",
+                        "isDelete": true
+                    }
+                },
+                "writer": {
+                    "name": "txtfilewriter",
+                    "parameter": {
+                        "tmpPath": "aaa_file/tmp",
+                        "path": "aaa_file/final",
+                        "fileName": "test",
+                        "writeMode": "append"
+                    }
+                }
+            }
+        ]
+    }
+}

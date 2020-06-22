@@ -4,6 +4,7 @@
         "path": [],
         "encoding": "",
         "column": [],
-        "fieldDelimiter": ""
+        "fieldDelimiter": "",
+        "isDelete": ""
     }
 }

@@ -20,13 +20,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.nio.charset.UnsupportedCharsetException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -218,6 +212,8 @@ public class TxtFileReader extends Reader {
 			// int splitNumber = adviceNumber;
 			int splitNumber = this.sourceFiles.size();
             if (0 == splitNumber) {
+            	LOG.info("未能找到待读取的文件,请确认您的配置项path: {}", this.originConfig.getString(Key.PATH));
+            	System.exit(0);
                 throw DataXException.asDataXException(
                         TxtFileReaderErrorCode.EMPTY_DIR_EXCEPTION, String
                                 .format("未能找到待读取的文件,请确认您的配置项path: %s",
@@ -238,7 +234,7 @@ public class TxtFileReader extends Reader {
 		// validate the path, path must be a absolute path
 		private List<String> buildSourceTargets() {
 			// for eath path
-			Set<String> toBeReadFiles = new HashSet<String>();
+			Set<String> toBeReadFiles = new TreeSet<>();
 			for (String eachPath : this.path) {
 				int endMark;
 				for (endMark = 0; endMark < eachPath.length(); endMark++) {
@@ -369,12 +365,14 @@ public class TxtFileReader extends Reader {
 
 		private Configuration readerSliceConfig;
 		private List<String> sourceFiles;
+		private boolean isDelete;
 
 		@Override
 		public void init() {
 			this.readerSliceConfig = this.getPluginJobConf();
 			this.sourceFiles = this.readerSliceConfig.getList(
 					Constant.SOURCE_FILES, String.class);
+			this.isDelete = this.readerSliceConfig.getBool(Constant.IS_DELETE, false);
 		}
 
 		@Override
@@ -412,8 +410,22 @@ public class TxtFileReader extends Reader {
 					throw DataXException.asDataXException(
 							TxtFileReaderErrorCode.OPEN_FILE_ERROR, message);
 				}
+				if (isDelete) {
+					deleteFile(fileName);
+				}
+
 			}
 			LOG.debug("end read source files...");
+		}
+
+		public void deleteFile(String filePath) {
+			File file = new File(filePath);
+			boolean isDelete = file.delete();
+			if (isDelete) {
+				LOG.info("delete file:{} success!", file.getName());
+			} else {
+				LOG.error("delete file:{} failed!", file.getName());
+			}
 		}
 
 	}

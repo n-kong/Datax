@@ -5,5 +5,7 @@ package com.alibaba.datax.plugin.writer.txtfilewriter;
  */
 public class Key {
     // must have
-    public static final String PATH = "path";
+    public static final String PATH = "tmpPath";
+
+    public static final String FINAL_PATH = "path";
 }

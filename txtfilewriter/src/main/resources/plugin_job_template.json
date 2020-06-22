@@ -1,6 +1,7 @@
 {
     "name": "txtfilewriter",
     "parameter": {
+        "tmpPath": "",
         "path": "",
         "fileName": "",
         "writeMode": "",
