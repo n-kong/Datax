@@ -20,6 +20,7 @@ import com.alibaba.datax.plugin.rdbms.reader.util.SingleTableSplitUtil;
 import com.alibaba.datax.plugin.rdbms.util.*;
 import com.google.common.collect.Lists;
 
+import com.sun.tools.corba.se.idl.StringGen;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -241,6 +242,8 @@ public class CommonRdbmsReader {
 
             try {
                 for (int i = 1; i <= columnNumber; i++) {
+
+
                     switch (metaData.getColumnType(i)) {
 
                     case Types.CHAR:
@@ -253,7 +256,7 @@ public class CommonRdbmsReader {
                         if(StringUtils.isBlank(mandatoryEncoding)){
                             rawData = rs.getString(i);
                         }else{
-                            rawData = new String((rs.getBytes(i) == null ? EMPTY_CHAR_ARRAY : 
+                            rawData = new String((rs.getBytes(i) == null ? EMPTY_CHAR_ARRAY :
                                 rs.getBytes(i)), mandatoryEncoding);
                         }
                         record.addColumn(new StringColumn(RdbmsStringUtil.replaceBlank(rawData)));
@@ -268,35 +271,44 @@ public class CommonRdbmsReader {
                     case Types.TINYINT:
                     case Types.INTEGER:
                     case Types.BIGINT:
-                        record.addColumn(new LongColumn(rs.getString(i)));
+                        record.addColumn(new StringColumn(RdbmsStringUtil.replaceBlank(rs.getString(i))));
                         break;
 
                     case Types.NUMERIC:
                     case Types.DECIMAL:
-                        record.addColumn(new DoubleColumn(RdbmsStringUtil.replaceBlank(rs.getString(i))));
+                        record.addColumn(new StringColumn(RdbmsStringUtil.replaceBlank(rs.getString(i))));
                         break;
 
                     case Types.FLOAT:
                     case Types.REAL:
                     case Types.DOUBLE:
-                        record.addColumn(new DoubleColumn(rs.getString(i)));
+                        record.addColumn(new StringColumn(RdbmsStringUtil.replaceBlank(rs.getString(i))));
                         break;
 
                     case Types.TIME:
-                        record.addColumn(new DateColumn(rs.getTime(i)));
+//                        record.addColumn(new StringColumn(rs.getTime(i)+""));
+                        record.addColumn(new StringColumn(rs.getString(i)));
                         break;
 
                     // for mysql bug, see http://bugs.mysql.com/bug.php?id=35115
                     case Types.DATE:
+                        String s = rs.getString(i);
                         if (metaData.getColumnTypeName(i).equalsIgnoreCase("year")) {
-                            record.addColumn(new LongColumn(rs.getInt(i)));
+                            record.addColumn(new StringColumn(s));
+                        } else if (StringUtils.isNotEmpty(s) && s.contains(".")){
+                            record.addColumn(new StringColumn(s.substring(0, s.indexOf("."))));
                         } else {
-                            record.addColumn(new DateColumn(rs.getDate(i)));
+                            record.addColumn(new StringColumn(s));
                         }
                         break;
 
                     case Types.TIMESTAMP:
-                        record.addColumn(new DateColumn(rs.getTimestamp(i)));
+                        String str = rs.getString(i);
+                        if (StringUtils.isNotEmpty(str) && str.contains(".")) {
+                            record.addColumn(new StringColumn(str.substring(0, str.indexOf("."))));
+                        } else {
+                            record.addColumn(new StringColumn(str));
+                        }
                         break;
 
                     case Types.BINARY:
@@ -310,7 +322,7 @@ public class CommonRdbmsReader {
                     // warn: bit(>1) -> Types.VARBINARY 可使用BytesColumn
                     case Types.BOOLEAN:
                     case Types.BIT:
-                        record.addColumn(new BoolColumn(rs.getBoolean(i)));
+                        record.addColumn(new StringColumn(rs.getString(i)));
                         break;
 
                     case Types.NULL:
