@@ -20,7 +20,7 @@ public class RdbmsStringUtil {
                 outStr = m.replaceAll("");
             }
 
-        return outStr;
+        return outStr.trim();
     }
 
 

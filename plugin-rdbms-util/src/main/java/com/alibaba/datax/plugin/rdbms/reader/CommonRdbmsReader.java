@@ -287,12 +287,12 @@ public class CommonRdbmsReader {
 
                     case Types.TIME:
 //                        record.addColumn(new StringColumn(rs.getTime(i)+""));
-                        record.addColumn(new StringColumn(rs.getString(i)));
+                        record.addColumn(new StringColumn(RdbmsStringUtil.replaceBlank(rs.getString(i))));
                         break;
 
                     // for mysql bug, see http://bugs.mysql.com/bug.php?id=35115
                     case Types.DATE:
-                        String s = rs.getString(i);
+                        String s = RdbmsStringUtil.replaceBlank(rs.getString(i));
                         if (metaData.getColumnTypeName(i).equalsIgnoreCase("year")) {
                             record.addColumn(new StringColumn(s));
                         } else if (StringUtils.isNotEmpty(s) && s.contains(".")){
@@ -303,7 +303,7 @@ public class CommonRdbmsReader {
                         break;
 
                     case Types.TIMESTAMP:
-                        String str = rs.getString(i);
+                        String str = RdbmsStringUtil.replaceBlank(rs.getString(i));
                         if (StringUtils.isNotEmpty(str) && str.contains(".")) {
                             record.addColumn(new StringColumn(str.substring(0, str.indexOf("."))));
                         } else {
@@ -322,7 +322,7 @@ public class CommonRdbmsReader {
                     // warn: bit(>1) -> Types.VARBINARY 可使用BytesColumn
                     case Types.BOOLEAN:
                     case Types.BIT:
-                        record.addColumn(new StringColumn(rs.getString(i)));
+                        record.addColumn(new StringColumn(RdbmsStringUtil.replaceBlank(rs.getString(i))));
                         break;
 
                     case Types.NULL:
