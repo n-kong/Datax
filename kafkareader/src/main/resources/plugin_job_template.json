@@ -1,0 +1,20 @@
+{
+    "name": "kafkareader",
+    "parameter": {
+        "topic": "",
+        "bootstrapServers": "",
+        "kafkaPartitions": "",
+        "columnCount": "",
+        "groupId": "",
+        "filterContaints":"",
+        "filterContaintsFlag":"",
+        "conditionAllOrOne":"",
+        "parsingRules":"",
+        "split":"",
+        "writerOrder":"",
+        "kafkaReaderColumnKey":"",
+        "execptionPath":"",
+        "offsetMode": ""
+
+    }
+}
