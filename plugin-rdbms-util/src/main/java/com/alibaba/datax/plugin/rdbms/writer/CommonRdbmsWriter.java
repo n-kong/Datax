@@ -2,8 +2,10 @@ package com.alibaba.datax.plugin.rdbms.writer;
 
 import com.alibaba.datax.common.element.Column;
 import com.alibaba.datax.common.element.Record;
+import com.alibaba.datax.common.element.StringColumn;
 import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.plugin.RecordReceiver;
+import com.alibaba.datax.common.plugin.RecordSender;
 import com.alibaba.datax.common.plugin.TaskPluginCollector;
 import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.plugin.rdbms.util.DBUtil;
@@ -188,6 +190,7 @@ public class CommonRdbmsWriter {
         protected int batchByteSize;
         protected int columnNumber = 0;
         protected TaskPluginCollector taskPluginCollector;
+        protected boolean isCheck;
 
         // 作为日志显示信息时，需要附带的通用信息。比如信息所对应的数据库连接等信息，针对哪个表做的操作
         protected static String BASIC_MESSAGE;
@@ -207,7 +210,7 @@ public class CommonRdbmsWriter {
             this.username = writerSliceConfig.getString(Key.USERNAME);
             this.password = writerSliceConfig.getString(Key.PASSWORD);
             this.jdbcUrl = writerSliceConfig.getString(Key.JDBC_URL);
-
+            this.isCheck = writerSliceConfig.getBool(Key.IS_CHECK, false);
             //ob10的处理
             if (this.jdbcUrl.startsWith(Constant.OB10_SPLIT_STRING) && this.dataBaseType == DataBaseType.MySql) {
                 String[] ss = this.jdbcUrl.split(Constant.OB10_SPLIT_STRING_PATTERN);
@@ -261,28 +264,20 @@ public class CommonRdbmsWriter {
 
         public void startWriteWithConnection(RecordReceiver recordReceiver, TaskPluginCollector taskPluginCollector, Connection connection) {
             this.taskPluginCollector = taskPluginCollector;
-
+            int successNum = 0;
             // 用于写入数据的时候的类型根据目的表字段类型转换
             this.resultSetMetaData = DBUtil.getColumnMetaData(connection,
                     this.table, StringUtils.join(this.columns, ","));
             // 写数据库的SQL语句
             calcWriteRecordSql();
-
             List<Record> writeBuffer = new ArrayList<Record>(this.batchSize);
             int bufferBytes = 0;
             try {
                 Record record;
                 while ((record = recordReceiver.getFromReader()) != null) {
-                    if (record.getColumnNumber() != this.columnNumber) {
-                        // 源头读取字段列数与目的表字段写入列数不相等，直接报错
-                        throw DataXException
-                                .asDataXException(
-                                        DBUtilErrorCode.CONF_ERROR,
-                                        String.format(
-                                                "列配置信息有错误. 因为您配置的任务中，源头读取字段数:%s 与 目的表要写入的字段数:%s 不相等. 请检查您的配置并作出修改.",
-                                                record.getColumnNumber(),
-                                                this.columnNumber));
-                    }
+                    successNum++;
+                    // 检查字段数是否一致
+                    checkColumnNum(record);
 
                     writeBuffer.add(record);
                     bufferBytes += record.getMemorySize();
@@ -305,6 +300,32 @@ public class CommonRdbmsWriter {
                 writeBuffer.clear();
                 bufferBytes = 0;
                 DBUtil.closeDBResources(null, null, connection);
+            }
+        }
+
+        public void checkColumnNum(Record record) {
+            if (!isCheck) {
+                if (record.getColumnNumber() != this.columnNumber) {
+                    // 源头读取字段列数与目的表字段写入列数不相等，直接报错
+                    throw DataXException
+                            .asDataXException(
+                                    DBUtilErrorCode.CONF_ERROR,
+                                    String.format(
+                                            "列配置信息有错误. 因为您配置的任务中，源头读取字段数:%s 与 目的表要写入的字段数:%s 不相等. 请检查您的配置并作出修改.",
+                                            record.getColumnNumber(),
+                                            this.columnNumber));
+                }
+            } else {
+                if ((record.getColumnNumber() - 5) != this.columnNumber) {
+                    throw DataXException
+                            .asDataXException(
+                                    DBUtilErrorCode.CONF_ERROR,
+                                    String.format(
+                                            "列配置信息有错误. 因为您配置的任务中，源头读取有效字段数:%s 与 目的表要写入的字段数:%s 不相等. 请检查您的配置并作出修改.",
+                                            record.getColumnNumber() - 5,
+                                            this.columnNumber));
+                }
+
             }
         }
 
@@ -400,10 +421,22 @@ public class CommonRdbmsWriter {
         // 直接使用了两个类变量：columnNumber,resultSetMetaData
         protected PreparedStatement fillPreparedStatement(PreparedStatement preparedStatement, Record record)
                 throws SQLException {
-            for (int i = 0; i < this.columnNumber; i++) {
-                int columnSqltype = this.resultSetMetaData.getMiddle().get(i);
-                preparedStatement = fillPreparedStatementColumnType(preparedStatement, i, columnSqltype, record.getColumn(i));
+
+            int pos = 0;
+            int end = 0;
+            if (isCheck) {
+                pos = 3;
+                end = 2;
             }
+            for (int i = pos; i < record.getColumnNumber() - end; i++) {
+                int columnSqltype = this.resultSetMetaData.getMiddle().get(i-pos);
+                preparedStatement = fillPreparedStatementColumnType(preparedStatement, i-pos, columnSqltype, record.getColumn(i));
+            }
+
+//            for (int i = 0; i < this.columnNumber; i++) {
+//                int columnSqltype = this.resultSetMetaData.getMiddle().get(i);
+//                preparedStatement = fillPreparedStatementColumnType(preparedStatement, i, columnSqltype, record.getColumn(i));
+//            }
 
             return preparedStatement;
         }

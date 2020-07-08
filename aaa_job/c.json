@@ -13,12 +13,14 @@
           "parameter": {
             "path":["aaa_file/final"],
             "column" : ["*"],
-            "fieldDelimiter":"\t"
+            "fieldDelimiter":"\t",
+            "isDelete": false
           }
         },
         "writer": {
           "name": "mysqlwriter",
           "parameter": {
+            "isCheck": false,
             "writeMode": "replace",
             "username": "nkong",
             "password": "nkong",
@@ -27,7 +29,7 @@
               {
                 "jdbcUrl": "jdbc:mysql://192.168.199.249:3306/db_ssms?useUnicode=true&characterEncoding=utf-8",
                 "table": [
-                  "exam"
+                  "nkong"
                 ]
               }
             ]
