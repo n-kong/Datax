@@ -88,9 +88,9 @@ public class DateColumn extends Column {
 			return null;
 		}
 
-//		if ("".equals(this.getRawData())) {
-//			return null;
-//		}
+		if ("".equals(this.getRawData())) {
+			return null;
+		}
 
 		return new Date((Long)this.getRawData());
 	}

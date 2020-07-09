@@ -3,6 +3,7 @@ package com.alibaba.datax.common.element;
 import com.alibaba.datax.common.exception.CommonErrorCode;
 import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.util.Configuration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
 
@@ -85,7 +86,7 @@ class StringCast {
 	}
 
 	static Date asDate(final StringColumn column) throws ParseException {
-		if (null == column.asString()) {
+		if (StringUtils.isEmpty(column.asString())) {
 			return null;
 		}
 

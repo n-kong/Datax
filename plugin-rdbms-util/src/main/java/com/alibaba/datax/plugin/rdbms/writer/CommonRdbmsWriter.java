@@ -442,143 +442,149 @@ public class CommonRdbmsWriter {
         }
 
         protected PreparedStatement fillPreparedStatementColumnType(PreparedStatement preparedStatement, int columnIndex, int columnSqltype, Column column) throws SQLException {
-//            java.util.Date utilDate;
-            String rawData = column.asString();
-            if (StringUtils.isNotEmpty(rawData)) {
-                preparedStatement.setString(columnIndex + 1, rawData);
-            } else {
-                preparedStatement.setString(columnIndex + 1, null);
-            }
-//            switch (columnSqltype) {
+            java.util.Date utilDate;
+//            String rawData = column.asString();
+//            if (StringUtils.isNotEmpty(rawData)) {
+//                preparedStatement.setString(columnIndex + 1, rawData);
+//            } else {
+//                preparedStatement.setString(columnIndex + 1, null);
+//            }
+            switch (columnSqltype) {
 
-//                case Types.CHAR:
-//                case Types.NCHAR:
-//                case Types.CLOB:
-//                case Types.NCLOB:
-//                case Types.VARCHAR:
-//                case Types.LONGVARCHAR:
-//                case Types.NVARCHAR:
-//                case Types.LONGNVARCHAR:
-//                    preparedStatement.setString(columnIndex + 1, column
-//                            .asString());
-//                    break;
-//
-//                case Types.SMALLINT:
-//                case Types.INTEGER:
-//                case Types.BIGINT:
-//                case Types.NUMERIC:
-//                case Types.DECIMAL:
-//                case Types.FLOAT:
-//                case Types.REAL:
-//                case Types.DOUBLE:
-//                    String strValue = column.asString();
-//                    if (emptyAsNull && "".equals(strValue)) {
-//                        preparedStatement.setString(columnIndex + 1, null);
-//                    } else {
-//                        preparedStatement.setString(columnIndex + 1, strValue);
-//                    }
-//                    break;
-//
-//                //tinyint is a little special in some database like mysql {boolean->tinyint(1)}
-//                case Types.TINYINT:
-//                    Long longValue = column.asLong();
-//                    if (null == longValue) {
-//                        preparedStatement.setString(columnIndex + 1, null);
-//                    } else {
-//                        preparedStatement.setString(columnIndex + 1, longValue.toString());
-//                    }
-//                    break;
-//
-//                // for mysql bug, see http://bugs.mysql.com/bug.php?id=35115
-//                case Types.DATE:
-//                    if (this.resultSetMetaData.getRight().get(columnIndex)
-//                            .equalsIgnoreCase("year")) {
-//                        if (column.asBigInteger() == null) {
-//                            preparedStatement.setString(columnIndex + 1, null);
-//                        } else {
-//                            preparedStatement.setInt(columnIndex + 1, column.asBigInteger().intValue());
-//                        }
-//                    } else {
-//                        java.sql.Date sqlDate = null;
-//                        try {
-//                            utilDate = column.asDate();
-//                        } catch (DataXException e) {
+                case Types.CHAR:
+                case Types.NCHAR:
+                case Types.CLOB:
+                case Types.NCLOB:
+                case Types.VARCHAR:
+                case Types.LONGVARCHAR:
+                case Types.NVARCHAR:
+                case Types.LONGNVARCHAR:
+                    preparedStatement.setString(columnIndex + 1, column
+                            .asString());
+                    break;
+
+                case Types.SMALLINT:
+                case Types.INTEGER:
+                case Types.BIGINT:
+                case Types.NUMERIC:
+                case Types.DECIMAL:
+                case Types.FLOAT:
+                case Types.REAL:
+                case Types.DOUBLE:
+                    String strValue = column.asString();
+                    if (emptyAsNull && StringUtils.isEmpty(strValue)) {
+                        preparedStatement.setString(columnIndex + 1, null);
+                    } else {
+                        preparedStatement.setString(columnIndex + 1, strValue);
+                    }
+                    break;
+
+                //tinyint is a little special in some database like mysql {boolean->tinyint(1)}
+                case Types.TINYINT:
+                    Long longValue = column.asLong();
+                    if (null == longValue) {
+                        preparedStatement.setString(columnIndex + 1, null);
+                    } else {
+                        preparedStatement.setString(columnIndex + 1, longValue.toString());
+                    }
+                    break;
+
+                // for mysql bug, see http://bugs.mysql.com/bug.php?id=35115
+                case Types.DATE:
+                    if (this.resultSetMetaData.getRight().get(columnIndex)
+                            .equalsIgnoreCase("year")) {
+                        if (column.asBigInteger() == null) {
+                            preparedStatement.setString(columnIndex + 1, null);
+                        } else {
+                            preparedStatement.setInt(columnIndex + 1, column.asBigInteger().intValue());
+                        }
+                    } else {
+                        java.sql.Date sqlDate = null;
+                        try {
+                            utilDate = column.asDate();
+                        } catch (DataXException e) {
+                            utilDate = null;
+                            LOG.warn(String.format("TIMESTAMP 类型转换错误：[%s] 该字段值置空!", column));
 //                            throw new SQLException(String.format(
 //                                    "Date 类型转换错误：[%s]", column));
-//                        }
-//
-//                        if (null != utilDate) {
-//                            sqlDate = new java.sql.Date(utilDate.getTime());
-//                        }
-//                        preparedStatement.setDate(columnIndex + 1, sqlDate);
-//                    }
-//                    break;
-//
-//                case Types.TIME:
-//                    java.sql.Time sqlTime = null;
-//                    try {
-//                        utilDate = column.asDate();
-//                    } catch (DataXException e) {
+                        }
+
+                        if (null != utilDate) {
+                            sqlDate = new java.sql.Date(utilDate.getTime());
+                        }
+                        preparedStatement.setDate(columnIndex + 1, sqlDate);
+                    }
+                    break;
+
+                case Types.TIME:
+                    java.sql.Time sqlTime = null;
+                    try {
+                        utilDate = column.asDate();
+                    } catch (DataXException e) {
+                        utilDate = null;
+                        LOG.warn(String.format("TIMESTAMP 类型转换错误：[%s] 该字段值置空!", column));
 //                        throw new SQLException(String.format(
 //                                "TIME 类型转换错误：[%s]", column));
-//                    }
-//
-//                    if (null != utilDate) {
-//                        sqlTime = new java.sql.Time(utilDate.getTime());
-//                    }
-//                    preparedStatement.setTime(columnIndex + 1, sqlTime);
-//                    break;
-//
-//                case Types.TIMESTAMP:
-//                    java.sql.Timestamp sqlTimestamp = null;
-//                    try {
-//                        utilDate = column.asDate();
-//                    } catch (DataXException e) {
+                    }
+
+                    if (null != utilDate) {
+                        sqlTime = new java.sql.Time(utilDate.getTime());
+                    }
+                    preparedStatement.setTime(columnIndex + 1, sqlTime);
+                    break;
+
+                case Types.TIMESTAMP:
+                    java.sql.Timestamp sqlTimestamp = null;
+                    try {
+                        utilDate = column.asDate();
+                    } catch (DataXException e) {
+                        utilDate = null;
+                        LOG.warn(String.format("TIMESTAMP 类型转换错误：[%s] 该字段值置空!", column));
 //                        throw new SQLException(String.format(
 //                                "TIMESTAMP 类型转换错误：[%s]", column));
-//                    }
-//
-//                    if (null != utilDate) {
-//                        sqlTimestamp = new java.sql.Timestamp(
-//                                utilDate.getTime());
-//                    }
-//                    preparedStatement.setTimestamp(columnIndex + 1, sqlTimestamp);
-//                    break;
-//
-//                case Types.BINARY:
-//                case Types.VARBINARY:
-//                case Types.BLOB:
-//                case Types.LONGVARBINARY:
-//                    preparedStatement.setBytes(columnIndex + 1, column
-//                            .asBytes());
-//                    break;
-//
-//                case Types.BOOLEAN:
-//                    preparedStatement.setString(columnIndex + 1, column.asString());
-//                    break;
-//
-//                // warn: bit(1) -> Types.BIT 可使用setBoolean
-//                // warn: bit(>1) -> Types.VARBINARY 可使用setBytes
-//                case Types.BIT:
-//                    if (this.dataBaseType == DataBaseType.MySql) {
-//                        preparedStatement.setBoolean(columnIndex + 1, column.asBoolean());
-//                    } else {
-//                        preparedStatement.setString(columnIndex + 1, column.asString());
-//                    }
-//                    break;
-//                default:
-//                    throw DataXException
-//                            .asDataXException(
-//                                    DBUtilErrorCode.UNSUPPORTED_TYPE,
-//                                    String.format(
-//                                            "您的配置文件中的列配置信息有误. 因为DataX 不支持数据库写入这种字段类型. 字段名:[%s], 字段类型:[%d], 字段Java类型:[%s]. 请修改表中该字段的类型或者不同步该字段.",
-//                                            this.resultSetMetaData.getLeft()
-//                                                    .get(columnIndex),
-//                                            this.resultSetMetaData.getMiddle()
-//                                                    .get(columnIndex),
-//                                            this.resultSetMetaData.getRight()
-//                                                    .get(columnIndex)));
-//            }
+                    }
+
+                    if (null != utilDate) {
+                        sqlTimestamp = new java.sql.Timestamp(
+                                utilDate.getTime());
+                    }
+                    preparedStatement.setTimestamp(columnIndex + 1, sqlTimestamp);
+                    break;
+
+                case Types.BINARY:
+                case Types.VARBINARY:
+                case Types.BLOB:
+                case Types.LONGVARBINARY:
+                    preparedStatement.setBytes(columnIndex + 1, null == column
+                            .asBytes() ? null : column.asBytes());
+                    break;
+
+                case Types.BOOLEAN:
+                    preparedStatement.setString(columnIndex + 1, StringUtils.isEmpty(column.asString()) ? null : column.asString());
+                    break;
+
+                // warn: bit(1) -> Types.BIT 可使用setBoolean
+                // warn: bit(>1) -> Types.VARBINARY 可使用setBytes
+                case Types.BIT:
+                    if (this.dataBaseType == DataBaseType.MySql) {
+                        preparedStatement.setBoolean(columnIndex + 1, null == column.asBoolean() ? null:column.asBoolean());
+                    } else {
+                        preparedStatement.setString(columnIndex + 1, StringUtils.isEmpty(column.asString()) ? null : column.asString());
+                    }
+                    break;
+                default:
+                    throw DataXException
+                            .asDataXException(
+                                    DBUtilErrorCode.UNSUPPORTED_TYPE,
+                                    String.format(
+                                            "您的配置文件中的列配置信息有误. 因为DataX 不支持数据库写入这种字段类型. 字段名:[%s], 字段类型:[%d], 字段Java类型:[%s]. 请修改表中该字段的类型或者不同步该字段.",
+                                            this.resultSetMetaData.getLeft()
+                                                    .get(columnIndex),
+                                            this.resultSetMetaData.getMiddle()
+                                                    .get(columnIndex),
+                                            this.resultSetMetaData.getRight()
+                                                    .get(columnIndex)));
+            }
             return preparedStatement;
         }
 
