@@ -7,6 +7,8 @@ import com.alibaba.datax.common.plugin.RecordSender;
 import com.alibaba.datax.common.spi.Reader;
 import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.plugin.rdbms.reader.CommonRdbmsReader;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -198,12 +200,14 @@ public class KafkaReader extends Reader {
         public void startRead(RecordSender recordSender) {
 
             Properties props = new Properties();
-            props.put("bootstrap.servers", bootstrapServers);
-            props.put("group.id", groupId != null ? groupId : UUID.randomUUID().toString());
-            props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-            props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-            props.put("enable.auto.commit", "false");
-            props.put("auto.offset.reset", offsetMode);
+            props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+            props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId != null ? groupId : UUID.randomUUID().toString());
+            props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+            props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+            props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+            props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, offsetMode);
+            props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 50000);
+            props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 10);
             KafkaConsumer<String, String> consumer = new KafkaConsumer<String, String>(props);
             consumer.subscribe(Collections.singletonList(kafkaTopic));
             Record oneRecord = null;
@@ -212,6 +216,10 @@ public class KafkaReader extends Reader {
                 for (ConsumerRecord<String, String> record : records) {
 
                     String value = record.value();
+
+                    if (StringUtils.isEmpty(value)) {
+                        continue;
+                    }
                     //定义过滤标志
                     int ifNotContinue = filterMessage(value);
                     //如果标志修改为1了那么就过滤掉这条数据。
@@ -224,8 +232,8 @@ public class KafkaReader extends Reader {
                     if (oneRecord != null) {
                         recordSender.sendToWriter(oneRecord);
                     }
+                    consumer.commitSync();
                 }
-                consumer.commitSync();
                 //判断当前事件是不是0点,0点的话进程他退出
                 Date date = new Date();
                 if (DateUtil.targetFormat(date).split(" ")[1].substring(0, 2).equals("00")) {
@@ -313,6 +321,7 @@ public class KafkaReader extends Reader {
             ArrayList<String> datas = new ArrayList<String>();
             for (String column : columns) {
                 datas.add(map.get(column).toString());
+                record.addColumn(new StringColumn(map.get(column).toString()));
             }
             if (datas.size() != count) {
                 System.out.println(datas.size());
