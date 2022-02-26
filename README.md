@@ -1,5 +1,4 @@
-![Datax-logo](https://github.com/alibaba/DataX/blob/master/images/DataX-logo.jpg)
-
+基于开源DataX做了一些扩展。
 
 
 # DataX
@@ -61,24 +60,5 @@ DataX目前已经有了比较全面的插件体系，主流的RDBMS数据库、N
 
 # 我要开发新的插件
 请点击：[DataX插件开发宝典](https://github.com/alibaba/DataX/blob/master/dataxPluginDev.md)
-
-# 项目成员
-
-核心Contributions: 言柏 、枕水、秋奇、青砾、一斅、云时
-
-感谢天烬、光戈、祁然、巴真、静行对DataX做出的贡献。
-
-# License
-
-This software is free to use under the Apache License [Apache license](https://github.com/alibaba/DataX/blob/master/license.txt).
-
-# 
-请及时提出issue给我们。请前往：[DataxIssue](https://github.com/alibaba/DataX/issues)
-
-# 开源版DataX企业用户
-
-![Datax-logo](https://github.com/alibaba/DataX/blob/master/images/datax-enterprise-users.jpg)
-
-```
 
 
