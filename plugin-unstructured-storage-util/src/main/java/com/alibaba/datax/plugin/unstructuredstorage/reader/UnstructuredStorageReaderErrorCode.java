@@ -17,7 +17,8 @@ public enum UnstructuredStorageReaderErrorCode implements ErrorCode {
 	OPEN_FILE_ERROR("UnstructuredStorageReader-08", "您配置的源在打开时异常,建议您检查源源是否有隐藏实体,管道文件等特殊文件."),
 	READ_FILE_IO_ERROR("UnstructuredStorageReader-09", "您配置的文件在读取时出现IO异常."),
 	SECURITY_NOT_ENOUGH("UnstructuredStorageReader-10", "您缺少权限执行相应的文件读取操作."),
-	RUNTIME_EXCEPTION("UnstructuredStorageReader-11", "出现运行时异常, 请联系我们");
+	RUNTIME_EXCEPTION("UnstructuredStorageReader-11", "出现运行时异常, 请联系我们"),
+	COLUMN_NUMBER_EXCEPTION("UnstructuredStorageReader-12", "您读取的文件出现列数量异常");
 
 	private final String code;
 	private final String description;

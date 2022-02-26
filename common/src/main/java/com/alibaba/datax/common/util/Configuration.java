@@ -5,8 +5,12 @@ import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.spi.ErrorCode;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.lang.model.type.NullType;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.CharUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
@@ -61,6 +65,7 @@ public class Configuration {
 
 	private Object root = null;
 
+	private static Pattern PATTERN = Pattern.compile("\t|\r|\n");
 	/**
 	 * 初始化空白的Configuration
 	 */
@@ -1059,7 +1064,7 @@ public class Configuration {
 		}
 	}
 
-	private Configuration(final String json) {
+	public Configuration(final String json) {
 		try {
 			this.root = JSON.parse(json);
 		} catch (Exception e) {
@@ -1074,5 +1079,22 @@ public class Configuration {
 
 	public Set<String> getSecretKeyPathSet() {
 		return secretKeyPathSet;
+	}
+
+	/**
+	 * 剔除 \r \t \n字符
+	 * @param inStr 输入字符串
+	 * @return
+	 */
+	public String trim(String inStr) {
+		if ("null".equalsIgnoreCase(inStr)) {
+			return "";
+		}
+		String outStr = "";
+		if (StringUtils.isNotBlank(inStr)) {
+			Matcher m = PATTERN.matcher(inStr);
+			outStr = m.replaceAll("");
+		}
+		return outStr.trim();
 	}
 }

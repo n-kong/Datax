@@ -7,7 +7,12 @@ import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.plugin.unstructuredstorage.reader.UnstructuredStorageReaderErrorCode;
 import com.alibaba.datax.plugin.unstructuredstorage.reader.UnstructuredStorageReaderUtil;
 import com.google.common.collect.Sets;
-
+import java.nio.file.FileSystems;
+import java.nio.file.Paths;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.BooleanUtils;
@@ -22,6 +27,8 @@ import java.io.InputStream;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.*;
 import java.util.regex.Pattern;
+
+import static com.alibaba.datax.plugin.unstructuredstorage.reader.UnstructuredStorageReaderUtil.validateCsvReaderConfig;
 
 /**
  * Created by haiwei.luo on 14-9-20.
@@ -46,6 +53,7 @@ public class TxtFileReader extends Reader {
 			this.pattern = new HashMap<String, Pattern>();
 			this.isRegexPath = new HashMap<String, Boolean>();
 			this.validateParameter();
+
 		}
 
 		private void validateParameter() {
@@ -178,12 +186,15 @@ public class TxtFileReader extends Reader {
 
 		}
 
+		private String filePath;
 		@Override
 		public void prepare() {
 			LOG.debug("prepare() begin...");
 			// warn:make sure this regex string
 			// warn:no need trim
 			for (String eachPath : this.path) {
+				this.filePath = eachPath;
+				this.originConfig.set(Constant.FILE_PATH, this.filePath);
 				String regexString = eachPath.replace("*", ".*").replace("?",
 						".?");
 				Pattern patt = Pattern.compile(regexString);
@@ -191,6 +202,11 @@ public class TxtFileReader extends Reader {
 				this.sourceFiles = this.buildSourceTargets();
 			}
 
+
+			if (this.sourceFiles.size() == 0) {
+				LOG.info("未能找到待读取的文件,请确认您的配置项path:{}", this.originConfig.getString(Key.PATH));
+				System.exit(0);
+			}
 			LOG.info(String.format("您即将读取的文件数为: [%s]", this.sourceFiles.size()));
 		}
 
@@ -211,13 +227,14 @@ public class TxtFileReader extends Reader {
 			// warn:每个slice拖且仅拖一个文件,
 			// int splitNumber = adviceNumber;
 			int splitNumber = this.sourceFiles.size();
+			//splitNumber = 1;
             if (0 == splitNumber) {
-            	LOG.info("未能找到待读取的文件,请确认您的配置项path: {}", this.originConfig.getString(Key.PATH));
+            	LOG.info("未能找到待读取的文件,请确认您的配置项path:{}", this.originConfig.getString(Key.PATH));
             	System.exit(0);
-                throw DataXException.asDataXException(
-                        TxtFileReaderErrorCode.EMPTY_DIR_EXCEPTION, String
-                                .format("未能找到待读取的文件,请确认您的配置项path: %s",
-                                        this.originConfig.getString(Key.PATH)));
+                //throw DataXException.asDataXException(
+                //        TxtFileReaderErrorCode.EMPTY_DIR_EXCEPTION, String
+                //                .format("未能找到待读取的文件,请确认您的配置项path: %s",
+                //                        this.originConfig.getString(Key.PATH)));
             }
 
 			List<List<String>> splitedSourceFiles = this.splitSourceFiles(
@@ -309,6 +326,9 @@ public class TxtFileReader extends Reader {
 							directoryRover(regexPath,
 									subFileNames.getAbsolutePath(),
 									toBeReadFiles);
+							if (toBeReadFiles.size() >= this.originConfig.getInt(Key.MAX_FILE_NUM, 5000)) {
+								return;
+							}
 						}
 					} else {
 						// warn: 对于没有权限的文件，是直接throw DataXException
@@ -365,19 +385,35 @@ public class TxtFileReader extends Reader {
 
 		private Configuration readerSliceConfig;
 		private List<String> sourceFiles;
-		private boolean isDelete;
+		private String filePath;
+		private int readMode;
+		private RecordSender recordSender;
+		private OssFileReader ossFileReader = null;
+		private String fileModel;
+		private FtpFileReader ftpFileReader = null;
+		private Boolean isDelete;
 
 		@Override
 		public void init() {
 			this.readerSliceConfig = this.getPluginJobConf();
 			this.sourceFiles = this.readerSliceConfig.getList(
 					Constant.SOURCE_FILES, String.class);
-			this.isDelete = this.readerSliceConfig.getBool(Constant.IS_DELETE, false);
+			isDelete = this.readerSliceConfig.getBool(Constant.IS_DELETE, true);
+			//this.filePath = this.readerSliceConfig.getString(Constant.FILE_PATH);
+			//this.readMode = this.readerSliceConfig.getInt(Constant.READ_MODE);
+			this.fileModel = this.readerSliceConfig.getString(Key.FILE_MODEL, Constant.FILE_MODEL);
+			//this.fileModel = this.readerSliceConfig.getString(Constant.IS_OSS_FILE, false);
+			if ("oss".equalsIgnoreCase(this.fileModel)) {
+				ossFileReader = new OssFileReader(this.readerSliceConfig);
+			} else if ("ftp".equalsIgnoreCase(this.fileModel)) {
+				ftpFileReader = new FtpFileReader(this.readerSliceConfig);
+			}
+
 		}
 
 		@Override
 		public void prepare() {
-
+			validateCsvReaderConfig(readerSliceConfig);
 		}
 
 		@Override
@@ -387,36 +423,85 @@ public class TxtFileReader extends Reader {
 
 		@Override
 		public void destroy() {
-
+			LOG.info("txtfilereader start destroy...");
+			if (null != ossFileReader) {
+                ossFileReader.close();
+            }
 		}
 
 		@Override
 		public void startRead(RecordSender recordSender) {
+			this.recordSender = recordSender;
+
 			LOG.debug("start read source files...");
-			for (String fileName : this.sourceFiles) {
-				LOG.info(String.format("reading file : [%s]", fileName));
+
+			if ("oss".equalsIgnoreCase(this.fileModel)) {
+				ossFileReader.uploadFileToOss(this.sourceFiles, recordSender, isDelete);
+			} else if ("ftp".equalsIgnoreCase(this.fileModel)) {
+				ftpFileReader.uploadFileToFtp(this.sourceFiles, isDelete);
+			} else {
+				read();
+			}
+
+			LOG.debug("end read source files...");
+
+            //if (this.readMode == 2) {
+			 //   drive();
+            //}
+
+		}
+
+
+		private void read() {
+			for (String sourceFile : this.sourceFiles) {
+				LOG.info(String.format("reading file : [%s]", sourceFile));
 				InputStream inputStream;
 				try {
-					inputStream = new FileInputStream(fileName);
+					inputStream = new FileInputStream(sourceFile);
 					UnstructuredStorageReaderUtil.readFromStream(inputStream,
-							fileName, this.readerSliceConfig, recordSender,
-							this.getTaskPluginCollector());
+						sourceFile, this.readerSliceConfig, recordSender,
+						this.getTaskPluginCollector());
 					recordSender.flush();
+					if (isDelete) {
+						deleteFile(sourceFile);
+					}
 				} catch (FileNotFoundException e) {
 					// warn: sock 文件无法read,能影响所有文件的传输,需要用户自己保证
 					String message = String
-							.format("找不到待读取的文件 : [%s]", fileName);
+						.format("找不到待读取的文件 : [%s]", sourceFile);
 					LOG.error(message);
 					throw DataXException.asDataXException(
-							TxtFileReaderErrorCode.OPEN_FILE_ERROR, message);
+						TxtFileReaderErrorCode.OPEN_FILE_ERROR, message);
 				}
-				if (isDelete) {
-					deleteFile(fileName);
-				}
-
 			}
-			LOG.debug("end read source files...");
+
 		}
+
+		private void drive() {
+			try {
+				WatchService service = FileSystems.getDefault().newWatchService();
+				Paths.get(this.filePath).register(service, StandardWatchEventKinds.ENTRY_CREATE);
+				while (true) {
+					WatchKey key = service.poll();
+					if (null != key) {
+						for (WatchEvent<?> event : key.pollEvents()) {
+							read();
+							LOG.info(event.context() + "文件:" + event.kind() + "次数:" + event.count());
+						}
+						boolean reset = key.reset();
+						if (!reset){
+							break;
+						}
+					} else {
+						Thread.sleep(1000);
+					}
+
+				}
+			} catch (Exception e) {
+				LOG.error("error {}", e.getMessage(), e);
+			}
+		}
+
 
 		public void deleteFile(String filePath) {
 			File file = new File(filePath);

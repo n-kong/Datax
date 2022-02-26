@@ -13,8 +13,7 @@
         "split":"",
         "writerOrder":"",
         "kafkaReaderColumnKey":"",
-        "execptionPath":"",
-        "offsetMode": ""
+        "execptionPath":""
 
     }
 }

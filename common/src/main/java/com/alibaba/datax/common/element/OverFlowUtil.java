@@ -1,10 +1,10 @@
 package com.alibaba.datax.common.element;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-
 import com.alibaba.datax.common.exception.CommonErrorCode;
 import com.alibaba.datax.common.exception.DataXException;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
 
 public final class OverFlowUtil {
 	public static final BigInteger MAX_LONG = BigInteger

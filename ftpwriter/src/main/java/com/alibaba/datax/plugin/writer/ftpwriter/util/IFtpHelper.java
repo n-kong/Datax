@@ -1,6 +1,7 @@
 package com.alibaba.datax.plugin.writer.ftpwriter.util;
 
 import java.io.OutputStream;
+import java.util.List;
 import java.util.Set;
 
 public interface IFtpHelper {
@@ -33,4 +34,5 @@ public interface IFtpHelper {
     
     public void completePendingCommand();
 
+    public void uploadFile(List<String> sourceFiles, String targetDir, Boolean isDelete);
 }

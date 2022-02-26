@@ -4,10 +4,9 @@ import com.alibaba.datax.common.constant.PluginType;
 import com.alibaba.datax.common.element.Record;
 import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.core.statistics.communication.Communication;
-import com.alibaba.datax.core.util.container.CoreConstant;
 import com.alibaba.datax.core.statistics.plugin.task.util.DirtyRecord;
+import com.alibaba.datax.core.util.container.CoreConstant;
 import com.alibaba.fastjson.JSON;
-
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

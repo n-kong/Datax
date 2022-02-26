@@ -28,4 +28,18 @@ public class Key {
 
 	public static final String CSV_READER_CONFIG = "csvReaderConfig";
 
+	public static final String IMAGE_INDEX = "imageIndex";
+
+	public static final String OSS_PREFIX = "ossPrefix";
+
+	public static final String DIR_NAME = "ossDir";
+
+	public static final String BUCKET_NAME = "bucket";
+
+	public static final String OSS_ENDPOINT = "endpoint";
+
+	public static final String ACCESS_ID = "accessId";
+
+	public static final String ACCESS_KEY = "accessKey";
+
 }

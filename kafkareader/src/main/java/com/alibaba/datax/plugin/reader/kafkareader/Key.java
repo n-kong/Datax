@@ -19,6 +19,5 @@ public class Key {
     public static final String WRITER_ORDER="writerOrder";
     public static final String KAFKA_READER_COLUMN_KEY="kafkaReaderColumnKey";
     public static final String EXECPTION_PATH="execptionPath";
-    public static final String OFFSET_MODE = "offsetMode";
 
 }

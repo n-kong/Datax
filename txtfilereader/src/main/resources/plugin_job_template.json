@@ -5,6 +5,7 @@
         "encoding": "",
         "column": [],
         "fieldDelimiter": "",
-        "isDelete": ""
+        "maxFileNum": "",
+        "isDelete":true
     }
 }

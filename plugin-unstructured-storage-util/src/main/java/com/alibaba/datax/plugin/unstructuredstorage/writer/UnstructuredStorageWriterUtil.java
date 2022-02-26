@@ -1,18 +1,15 @@
 package com.alibaba.datax.plugin.unstructuredstorage.writer;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-
+import com.alibaba.datax.common.element.Column;
+import com.alibaba.datax.common.element.DateColumn;
+import com.alibaba.datax.common.element.Record;
+import com.alibaba.datax.common.exception.DataXException;
+import com.alibaba.datax.common.plugin.RecordReceiver;
+import com.alibaba.datax.common.plugin.TaskPluginCollector;
+import com.alibaba.datax.common.util.Configuration;
+import com.google.common.collect.Sets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.commons.compress.compressors.CompressorOutputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
@@ -22,14 +19,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.alibaba.datax.common.element.Column;
-import com.alibaba.datax.common.element.DateColumn;
-import com.alibaba.datax.common.element.Record;
-import com.alibaba.datax.common.exception.DataXException;
-import com.alibaba.datax.common.plugin.RecordReceiver;
-import com.alibaba.datax.common.plugin.TaskPluginCollector;
-import com.alibaba.datax.common.util.Configuration;
-import com.google.common.collect.Sets;
+import java.io.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class UnstructuredStorageWriterUtil {
     private UnstructuredStorageWriterUtil() {
@@ -38,6 +31,8 @@ public class UnstructuredStorageWriterUtil {
 
     private static final Logger LOG = LoggerFactory
             .getLogger(UnstructuredStorageWriterUtil.class);
+
+    private static Pattern PATTERN = Pattern.compile("\t|\r|\n");
 
     /**
      * check parameter: writeMode, encoding, compress, filedDelimiter
@@ -309,13 +304,13 @@ public class UnstructuredStorageWriterUtil {
                     if (null != column.getRawData()) {
                         boolean isDateColumn = column instanceof DateColumn;
                         if (!isDateColumn) {
-                            splitedRows.add(column.asString());
+                            splitedRows.add(replaceBlank(column.asString()));
                         } else {
                             if (null != dateParse) {
                                 splitedRows.add(dateParse.format(column
                                         .asDate()));
                             } else {
-                                splitedRows.add(column.asString());
+                                splitedRows.add(replaceBlank(column.asString()));
                             }
                         }
                     } else {
@@ -330,4 +325,16 @@ public class UnstructuredStorageWriterUtil {
             taskPluginCollector.collectDirtyRecord(record, e);
         }
     }
+
+    private static String replaceBlank(String inStr) {
+
+        String outStr = "";
+        if (StringUtils.isNotBlank(inStr) && !"null".equalsIgnoreCase(inStr)) {
+            Matcher m = PATTERN.matcher(inStr);
+            outStr = m.replaceAll("");
+        }
+
+        return outStr.trim();
+    }
+
 }

@@ -3,8 +3,8 @@ package com.alibaba.datax.common.spi;
 import com.alibaba.datax.common.base.BaseObject;
 import com.alibaba.datax.common.plugin.AbstractJobPlugin;
 import com.alibaba.datax.common.plugin.AbstractTaskPlugin;
-import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.common.plugin.RecordReceiver;
+import com.alibaba.datax.common.util.Configuration;
 
 import java.util.List;
 

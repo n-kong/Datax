@@ -15,7 +15,9 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.Statement;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public final class WriterUtil {
     private static final Logger LOG = LoggerFactory.getLogger(WriterUtil.class);
@@ -130,6 +132,11 @@ public final class WriterUtil {
                     .append(")")
                     .append(onDuplicateKeyUpdateString(columnHolders))
                     .toString();
+        } else if ((dataBaseType == DataBaseType.PostgreSQL) && writeMode.trim().toLowerCase().startsWith("update")) {
+            writeDataSqlTemplate = new StringBuilder().append("INSERT INTO %s (")
+                .append(StringUtils.join(columnHolders, ","))
+                .append(") VALUES(").append(StringUtils.join(valueHolders, ","))
+                .append(")").append(onConFlictDoString(writeMode, columnHolders)).toString();
         } else {
 
             //这里是保护,如果其他错误的使用了update,需要更换为replace
@@ -143,6 +150,27 @@ public final class WriterUtil {
         }
 
         return writeDataSqlTemplate;
+    }
+
+    private static String onConFlictDoString(String conflict, List<String> columnHolders) {
+        conflict = conflict.replace("update", "");
+        StringBuilder sb = new StringBuilder();
+        sb.append(" ON CONFLICT ");
+        sb.append(conflict);
+        sb.append(" DO ");
+        if (columnHolders == null || columnHolders.size() < 1) {
+            sb.append("NOTHING");
+            return sb.toString();
+        }
+        sb.append(" UPDATE SET ");
+        for (String column : columnHolders) {
+            sb.append(column);
+            sb.append("=excluded.");
+            sb.append(column);
+            sb.append(",");
+        }
+        String sql = sb.toString();
+        return sql.substring(1, sql.length() - 1);
     }
 
     public static String onDuplicateKeyUpdateString(List<String> columnHolders){

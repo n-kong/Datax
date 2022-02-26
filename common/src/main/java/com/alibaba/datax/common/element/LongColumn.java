@@ -123,6 +123,11 @@ public class LongColumn extends Column {
 		if (null == this.getRawData()) {
 			return null;
 		}
+
+		if ("".equalsIgnoreCase(this.getRawData().toString())) {
+			return null;
+		}
+
 		return new Date(this.asLong());
 	}
 

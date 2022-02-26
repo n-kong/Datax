@@ -18,11 +18,11 @@ public enum ColumnType {
     }
 
     public static ColumnType asColumnType(String columnTypeString) {
-        if ("partition".equals(columnTypeString)) {
+        if ("partition".equalsIgnoreCase(columnTypeString)) {
             return PARTITION;
-        } else if ("normal".equals(columnTypeString)) {
+        } else if ("normal".equalsIgnoreCase(columnTypeString)) {
             return NORMAL;
-        } else if ("constant".equals(columnTypeString)) {
+        } else if ("constant".equalsIgnoreCase(columnTypeString)) {
             return CONSTANT;
         } else {
             return UNKNOWN;

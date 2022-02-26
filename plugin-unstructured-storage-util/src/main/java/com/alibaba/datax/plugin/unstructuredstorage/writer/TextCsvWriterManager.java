@@ -1,15 +1,14 @@
 package com.alibaba.datax.plugin.unstructuredstorage.writer;
 
-import java.io.IOException;
-import java.io.Writer;
-import java.util.List;
-
+import com.csvreader.CsvWriter;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.csvreader.CsvWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.util.List;
 
 public class TextCsvWriterManager {
     public static UnstructuredWriter produceUnstructuredWriter(
@@ -33,8 +32,8 @@ class CsvWriterImpl implements UnstructuredWriter {
     public CsvWriterImpl(Writer writer, char fieldDelimiter) {
         this.fieldDelimiter = fieldDelimiter;
         this.csvWriter = new CsvWriter(writer, this.fieldDelimiter);
-        this.csvWriter.setTextQualifier('"');
-        this.csvWriter.setUseTextQualifier(true);
+        this.csvWriter.setTextQualifier('\t');
+        this.csvWriter.setUseTextQualifier(false);
         // warn: in linux is \n , in windows is \r\n
         this.csvWriter.setRecordDelimiter(IOUtils.LINE_SEPARATOR.charAt(0));
     }

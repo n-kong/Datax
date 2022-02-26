@@ -1,25 +1,29 @@
 package com.alibaba.datax.plugin.writer.ftpwriter.util;
 
+import com.alibaba.datax.common.exception.DataXException;
+import com.alibaba.datax.plugin.writer.ftpwriter.FtpWriterErrorCode;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.util.List;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.net.ftp.FTP;
+import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPFile;
+import org.apache.commons.net.ftp.FTPReply;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Set;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPClientConfig;
-import org.apache.commons.net.ftp.FTPFile;
-import org.apache.commons.net.ftp.FTPReply;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.alibaba.datax.common.exception.DataXException;
-import com.alibaba.datax.plugin.writer.ftpwriter.FtpWriterErrorCode;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.serializer.SerializerFeature;
 
 public class StandardFtpHelperImpl implements IFtpHelper {
     private static final Logger LOG = LoggerFactory
@@ -322,6 +326,35 @@ public class StandardFtpHelperImpl implements IFtpHelper {
             LOG.error(message);
             throw DataXException.asDataXException(
                     FtpWriterErrorCode.COMMAND_FTP_IO_EXCEPTION, message, e);
+        }
+    }
+
+    @Override
+    public void uploadFile(List<String> sourceFiles, String targetDir, Boolean isDelete) {
+        InputStream inputStream = null;
+        try {
+            for (String file : sourceFiles) {
+                File uploadFile = new File(file);
+                inputStream = new FileInputStream(uploadFile);
+                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+                boolean isWrite = ftpClient.storeFile(targetDir + uploadFile.getName(), inputStream);
+                if (isWrite) {
+                    LOG.info("文件：[{}]上传成功。", file);
+                } else {
+                    LOG.info("文件：[{}]上传失败。", file);
+                }
+                if (isDelete) {
+                    uploadFile.delete();
+                }
+            }
+        } catch (FileNotFoundException e) {
+            LOG.error("文件不存在，请确认您配置的目录是否正确。", e);
+        } catch (IOException e1) {
+            LOG.error("文件上传FTP失败。", e1.getMessage());
+            e1.printStackTrace();
+        } finally {
+            IOUtils.closeQuietly(inputStream);
+            this.logoutFtpServer();
         }
     }
 }

@@ -1,11 +1,11 @@
 package com.alibaba.datax.common.element;
 
+import com.alibaba.datax.common.exception.CommonErrorCode;
+import com.alibaba.datax.common.exception.DataXException;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Date;
-
-import com.alibaba.datax.common.exception.CommonErrorCode;
-import com.alibaba.datax.common.exception.DataXException;
 
 /**
  * Created by jingxing on 14-8-24.

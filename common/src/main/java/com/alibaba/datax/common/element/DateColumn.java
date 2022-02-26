@@ -2,7 +2,6 @@ package com.alibaba.datax.common.element;
 
 import com.alibaba.datax.common.exception.CommonErrorCode;
 import com.alibaba.datax.common.exception.DataXException;
-import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -88,7 +87,7 @@ public class DateColumn extends Column {
 			return null;
 		}
 
-		if ("".equals(this.getRawData())) {
+		if ("".equalsIgnoreCase(this.getRawData().toString())) {
 			return null;
 		}
 

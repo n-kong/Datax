@@ -1,12 +1,12 @@
 package com.alibaba.datax.common.spi;
 
-import java.util.List;
-
 import com.alibaba.datax.common.base.BaseObject;
 import com.alibaba.datax.common.plugin.AbstractJobPlugin;
 import com.alibaba.datax.common.plugin.AbstractTaskPlugin;
-import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.common.plugin.RecordSender;
+import com.alibaba.datax.common.util.Configuration;
+
+import java.util.List;
 
 /**
  * 每个Reader插件在其内部内部实现Job、Task两个内部类。

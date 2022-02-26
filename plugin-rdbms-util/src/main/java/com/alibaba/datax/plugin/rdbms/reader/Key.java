@@ -46,5 +46,7 @@ public final class Key {
 
     public final static String DRYRUN = "dryRun";
 
+    public final static String IMAGE_FLG = "imageFlg";
+
 
 }

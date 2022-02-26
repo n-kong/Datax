@@ -1,7 +1,6 @@
 
 # OracleReader 插件文档
 
-
 ___
 
 
@@ -236,7 +235,7 @@ OracleReader插件实现了从Oracle读取数据。在底层实现上，OracleRe
   `(注意&quot;是 " 的转义字符串)`。
 
 	* 必选：否 <br />
-
+	
 	* 默认值：无 <br />
 
 
@@ -346,5 +345,6 @@ OracleReader提供querySql语句交给用户自己实现SELECT抽取语句，Ora
   2.  合理sql的并发度，减少抽取时间；根据表的大小，
       <50G可以不用并发，
       <100G添加如下hint: parallel(a,2）,
+      
       >100G添加如下hint : parallel(a,4);
   3.  抽取sql要简单，尽量不用replace等函数，这个非常消耗cpu，会严重影响抽取速度;

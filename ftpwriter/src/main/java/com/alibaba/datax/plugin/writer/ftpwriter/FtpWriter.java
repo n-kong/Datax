@@ -10,7 +10,6 @@ import com.alibaba.datax.plugin.writer.ftpwriter.util.Constant;
 import com.alibaba.datax.plugin.writer.ftpwriter.util.IFtpHelper;
 import com.alibaba.datax.plugin.writer.ftpwriter.util.SftpHelperImpl;
 import com.alibaba.datax.plugin.writer.ftpwriter.util.StandardFtpHelperImpl;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;

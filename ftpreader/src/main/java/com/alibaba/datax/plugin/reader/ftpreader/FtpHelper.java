@@ -1,6 +1,9 @@
 package com.alibaba.datax.plugin.reader.ftpreader;
 
+import java.io.File;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
@@ -98,10 +101,30 @@ public abstract class FtpHelper {
 		HashSet<String> sourceAllFiles = new HashSet<String>();
 		if (!srcPaths.isEmpty()) {
 			for (String eachPath : srcPaths) {
+				if (eachPath.contains("${yyyyMMdd}")) {
+					eachPath = eachPath.replace("${yyyyMMdd}", new SimpleDateFormat("yyyyMMdd").format(new Date()));
+				} else if(eachPath.contains("${yyyy-MM-dd}")) {
+					eachPath = eachPath.replace("${yyyy-MM-dd}", new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
+				}
 				sourceAllFiles.addAll(getListFiles(eachPath, parentLevel, maxTraversalLevel));
 			}
 		}
 		return sourceAllFiles;
 	}
 
+	public abstract String getFtpImage(String filePath);
+
+	/**
+	 * 下载文件到指定目录
+	 * @param files
+	 * @param outTmpPath
+	 * @param outPath
+	 */
+	public abstract void downFile(List<String> files, String outTmpPath, String outPath);
+
+	public abstract void deleteFile(String fileName);
+
+	public abstract void renameFile(String fileName, String targetFile);
+
+	public abstract void mkDirIfNotExist(String path);
 }

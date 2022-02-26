@@ -24,7 +24,9 @@ public enum FtpReaderErrorCode implements ErrorCode {
 	FAIL_DISCONNECT("FtpReader-13", "关闭ftp连接失败,无法与ftp服务器断开连接."),
 	COMMAND_FTP_IO_EXCEPTION("FtpReader-14", "与ftp服务器连接异常."),
 	OUT_MAX_DIRECTORY_LEVEL("FtpReader-15", "超出允许的最大目录层数."),
-	LINK_FILE("FtpReader-16", "您尝试读取的文件为链接文件."),;
+	LINK_FILE("FtpReader-16", "您尝试读取的文件为链接文件."),
+	ERROR_DELE_DILE_MODE("FtpReader-17","错误的处理ftp文件模式"),
+	ERROR_TIME_TYPE("FtpReader-18","填入的时间参数无效");
 
 	private final String code;
 	private final String description;

@@ -17,7 +17,10 @@ public enum TxtFileReaderErrorCode implements ErrorCode {
 	SECURITY_NOT_ENOUGH("TxtFileReader-08", "您缺少权限执行相应的文件操作."),
 	CONFIG_INVALID_EXCEPTION("TxtFileReader-09", "您的参数配置错误."),
 	RUNTIME_EXCEPTION("TxtFileReader-10", "出现运行时异常, 请联系我们"),
-	EMPTY_DIR_EXCEPTION("TxtFileReader-11", "您尝试读取的文件目录为空."),;
+	EMPTY_DIR_EXCEPTION("TxtFileReader-11", "您尝试读取的文件目录为空."),
+
+	FAIL_LOGIN("Ftp-12", "登录失败,无法与ftp服务器建立连接."),
+	;
 
 	private final String code;
 	private final String description;

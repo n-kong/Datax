@@ -41,6 +41,19 @@
 			<artifactId>guava</artifactId>
             <version>16.0.1</version>
 		</dependency>
+		<dependency>
+			<groupId>com.alibaba.datax</groupId>
+			<artifactId>osswriter</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.datax</groupId>
+			<artifactId>ftpwriter</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+
+
 	</dependencies>
 
 	<build>
@@ -49,8 +62,8 @@
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
-					<source>${jdk-version}</source>
-					<target>${jdk-version}</target>
+					<source>1.6</source>
+					<target>1.6</target>
 					<encoding>${project-sourceEncoding}</encoding>
 				</configuration>
 			</plugin>
@@ -72,7 +85,15 @@
 					</execution>
 				</executions>
 			</plugin>
-		</plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.7</source>
+          <target>1.7</target>
+        </configuration>
+      </plugin>
+    </plugins>
 	</build>
 
 </project>

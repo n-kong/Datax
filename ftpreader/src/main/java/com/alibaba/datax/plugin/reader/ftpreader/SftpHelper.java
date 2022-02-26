@@ -1,23 +1,26 @@
 package com.alibaba.datax.plugin.reader.ftpreader;
 
+import com.alibaba.datax.common.exception.DataXException;
+import com.alibaba.datax.plugin.unstructuredstorage.reader.UnstructuredStorageReaderUtil;
+import com.jcraft.jsch.*;
+import com.jcraft.jsch.ChannelSftp.LsEntry;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.List;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.net.ftp.FTP;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.InputStream;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Vector;
-
-import org.apache.commons.io.IOUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.alibaba.datax.common.exception.DataXException;
-import com.alibaba.datax.plugin.unstructuredstorage.reader.UnstructuredStorageReaderUtil;
-import com.jcraft.jsch.ChannelSftp;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
-import com.jcraft.jsch.SftpATTRS;
-import com.jcraft.jsch.SftpException;
-import com.jcraft.jsch.ChannelSftp.LsEntry;
+import sun.misc.BASE64Encoder;
 
 public class SftpHelper extends FtpHelper {
 	private static final Logger LOG = LoggerFactory.getLogger(SftpHelper.class);
@@ -169,7 +172,7 @@ public class SftpHelper extends FtpHelper {
 	
 			} else if (isDirExist(directoryPath)) {
 				// path是目录
-				if (directoryPath.charAt(pathLen - 1) == IOUtils.DIR_SEPARATOR) {
+				if (directoryPath.charAt(pathLen - 1) == IOUtils.DIR_SEPARATOR || directoryPath.charAt(pathLen - 1) == IOUtils.DIR_SEPARATOR_UNIX) {
 					parentPath = directoryPath;
 				} else {
 					parentPath = directoryPath + IOUtils.DIR_SEPARATOR;
@@ -185,8 +188,9 @@ public class SftpHelper extends FtpHelper {
 				return sourceFiles;
 			} else {
 				String message = String.format("请确认您的配置项path:[%s]存在，且配置的用户有权限读取", directoryPath);
-				LOG.error(message);
-				throw DataXException.asDataXException(FtpReaderErrorCode.FILE_NOT_EXISTS, message);
+				LOG.info(message);
+				System.exit(0);
+				//throw DataXException.asDataXException(FtpReaderErrorCode.FILE_NOT_EXISTS, message);
 			}
 	
 			try {
@@ -199,8 +203,11 @@ public class SftpHelper extends FtpHelper {
 					if (isDirExist(filePath)) {
 						// 是子目录
 						if (!(strName.equals(".") || strName.equals(".."))) {
-							//递归处理
-							getListFiles(filePath, parentLevel+1, maxTraversalLevel);
+							parentLevel += 1;
+							if (parentLevel < maxTraversalLevel) {
+								//递归处理
+								getListFiles(filePath, parentLevel, maxTraversalLevel);
+							}
 						}
 					} else if(isSymbolicLink(filePath)){
 						//是链接文件
@@ -243,4 +250,91 @@ public class SftpHelper extends FtpHelper {
 		}
 	}
 
+	@Override public String getFtpImage(String filePath) {
+		InputStream inputStream = null;
+		ByteArrayOutputStream outputStream = null;
+		String base64 = "";
+		try {
+			inputStream = channelSftp.get(filePath);
+			if (inputStream != null) {
+				byte[] data = new byte[1024];
+				int len = 0;
+				outputStream = new ByteArrayOutputStream();
+				while (-1 != (len = inputStream.read(data))) {
+					outputStream.write(data, 0, len);
+				}
+				outputStream.flush();
+				data = outputStream.toByteArray();
+				BASE64Encoder encoder = new BASE64Encoder();
+				base64 = encoder.encode(data);
+			}
+		} catch (IOException e) {
+			String message =
+				String.format("读取文件 : [%s] 时出错,请确认文件：[%s]存在且配置的用户有权限读取", filePath, filePath);
+			LOG.error(message);
+		} catch (SftpException e) {
+			LOG.error("获取文件数据流失败。", e);
+			e.printStackTrace();
+		} finally {
+			IOUtils.closeQuietly(outputStream);
+			IOUtils.closeQuietly(inputStream);
+		}
+		return base64.replace("\r", "").replace("\n", "");
+	}
+
+	@Override
+	public void downFile(List<String> files, String outTmpPath, String outPath) {
+		FileOutputStream outputStream = null;
+		for (String file : files) {
+			String fileName = new File(file).getName();
+			File tmpFile = new File(outTmpPath + fileName);
+			try {
+				outputStream = new FileOutputStream(tmpFile);
+				channelSftp.get(file, outputStream);
+				LOG.info("文件：[{}]下载成功.", file);
+			} catch (FileNotFoundException e) {
+				LOG.error("File:[{}] not found.", file, e);
+			}  catch (SftpException e) {
+				LOG.error("down file error.", e);
+				e.printStackTrace();
+			} finally {
+				IOUtils.closeQuietly(outputStream);
+				try {
+					FileUtils.moveFile(tmpFile, new File(outPath + fileName));
+					LOG.info("文件:[{}]移动到目录:[{}]成功！", fileName, outPath);
+				} catch (IOException e) {
+					LOG.error("文件:[{}]移动到目录:[{}]失败！", fileName, outPath, e);
+				}
+			}
+		}
+	}
+
+	@Override public void deleteFile(String fileName) {
+		try {
+			channelSftp.rm(fileName);
+		} catch (SftpException e) {
+			LOG.error("delete file error，error msg: {}", e.getMessage(), e);
+			e.printStackTrace();
+		}
+	}
+
+	@Override public void renameFile(String fileName, String targetFile) {
+		try {
+			channelSftp.rename(fileName,targetFile);
+		} catch (SftpException e) {
+			LOG.error("rename file error，error msg: {}", e.getMessage(), e);
+			e.printStackTrace();
+		}
+	}
+
+	@Override public void mkDirIfNotExist(String path) {
+		try {
+			if (!isDirExist(path)) {
+				channelSftp.mkdir(path);
+			}
+		} catch (SftpException e) {
+			LOG.error("创建文件夹：[{}]失败，请您手动创建，确保文件夹存在！", path, e);
+			e.printStackTrace();
+		}
+	}
 }

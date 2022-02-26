@@ -4,9 +4,7 @@ import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.plugin.RecordReceiver;
 import com.alibaba.datax.common.spi.Writer;
 import com.alibaba.datax.common.util.Configuration;
-import com.alibaba.datax.core.util.DateUtil;
 import com.alibaba.datax.plugin.unstructuredstorage.writer.UnstructuredStorageWriterUtil;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.PrefixFileFilter;
@@ -14,11 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -30,10 +24,13 @@ public class TxtFileWriter extends Writer {
 
         private Configuration writerSliceConfig = null;
 
+        private static String test  = "kqlu";
+
         @Override
         public void init() {
+            LOG.info("fileWriter start init()");
             this.writerSliceConfig = this.getPluginJobConf();
-            this.validateParameter();
+            //this.validateParameter();
             String dateFormatOld = this.writerSliceConfig
                     .getString(com.alibaba.datax.plugin.unstructuredstorage.writer.Key.FORMAT);
             String dateFormatNew = this.writerSliceConfig
@@ -48,6 +45,7 @@ public class TxtFileWriter extends Writer {
             }
             UnstructuredStorageWriterUtil
                     .validateParameter(this.writerSliceConfig);
+            LOG.info("fileWriter end init()");
         }
 
         private void validateParameter() {
@@ -89,6 +87,7 @@ public class TxtFileWriter extends Writer {
 
         @Override
         public void prepare() {
+            LOG.info("fileWriter start prepare()");
             String path = this.writerSliceConfig.getString(Key.PATH);
             String fileName = this.writerSliceConfig
                     .getString(com.alibaba.datax.plugin.unstructuredstorage.writer.Key.FILE_NAME);
@@ -192,6 +191,7 @@ public class TxtFileWriter extends Writer {
                                         "仅支持 truncate, append, nonConflict 三种模式, 不支持您配置的 writeMode 模式 : [%s]",
                                         writeMode));
             }
+            LOG.info("fileWriter end prepare()");
         }
 
         @Override
@@ -231,11 +231,14 @@ public class TxtFileWriter extends Writer {
                         .clone();
 
                 String fullFileName = null;
-                String date = DateUtil.formatDate(new Date());
-                fullFileName = String.format("%s_%s_%s-%s", date, filePrefix, System.currentTimeMillis(), numFormat(i, 5)).toUpperCase();
+                //fileSuffix = UUID.randomUUID().toString().replace('-', '_');
+                fullFileName = String.format("%s_%s_%s-%s",
+                    com.alibaba.datax.plugin.writer.txtfilewriter.StringUtils.formatDate(new Date()), filePrefix, System.currentTimeMillis(),
+                    com.alibaba.datax.plugin.writer.txtfilewriter.StringUtils.numFormat(i, 5)).toUpperCase();
                 while (allFiles.contains(fullFileName)) {
                     fileSuffix = UUID.randomUUID().toString().replace('-', 'a');
-                    fullFileName = String.format("%s_%s_%s-%s", date, filePrefix, System.currentTimeMillis(), fileSuffix).toUpperCase();
+                    fullFileName = String.format("%s_%s_%s-%s",
+                        com.alibaba.datax.plugin.writer.txtfilewriter.StringUtils.formatDate(new Date()), filePrefix, System.currentTimeMillis(),fileSuffix).toUpperCase();
                 }
                 fullFileName = fullFileName + ".nb";
                 allFiles.add(fullFileName);
@@ -251,10 +254,6 @@ public class TxtFileWriter extends Writer {
             }
             LOG.info("end do split.");
             return writerSplitConfigs;
-        }
-
-        public String numFormat(int inNum, int length) {
-            return String.format("%0" + length + "d", inNum);
         }
 
     }
@@ -281,7 +280,40 @@ public class TxtFileWriter extends Writer {
 
         @Override
         public void prepare() {
+            this.writerSliceConfig
+                .getNecessaryValue(
+                    com.alibaba.datax.plugin.unstructuredstorage.writer.Key.FILE_NAME,
+                    TxtFileWriterErrorCode.REQUIRED_VALUE);
 
+            String path = this.writerSliceConfig.getNecessaryValue(Key.PATH,
+                TxtFileWriterErrorCode.REQUIRED_VALUE);
+
+            try {
+                // warn: 这里用户需要配一个目录
+                File dir = new File(path);
+                if (dir.isFile()) {
+                    throw DataXException
+                        .asDataXException(
+                            TxtFileWriterErrorCode.ILLEGAL_VALUE,
+                            String.format(
+                                "您配置的path: [%s] 不是一个合法的目录, 请您注意文件重名, 不合法目录名等情况.",
+                                path));
+                }
+                if (!dir.exists()) {
+                    boolean createdOk = dir.mkdirs();
+                    if (!createdOk) {
+                        throw DataXException
+                            .asDataXException(
+                                TxtFileWriterErrorCode.CONFIG_INVALID_EXCEPTION,
+                                String.format("您指定的文件路径 : [%s] 创建失败.",
+                                    path));
+                    }
+                }
+            } catch (SecurityException se) {
+                throw DataXException.asDataXException(
+                    TxtFileWriterErrorCode.SECURITY_NOT_ENOUGH,
+                    String.format("您没有权限创建文件路径 : [%s] ", path), se);
+            }
         }
 
         @Override
@@ -309,8 +341,25 @@ public class TxtFileWriter extends Writer {
                         String.format("无法创建待写文件 : [%s]", this.fileName), ioe);
             } finally {
                 IOUtils.closeQuietly(outputStream);
-                String name = newFile.getName();
-                newFile.renameTo(new File(this.finalPath + "/" + name));
+                if (null != newFile && 0 == newFile.length()) {
+                    LOG.info("任务执行成功，但无数据输出，空文件[{}]将被删除！", newFile.getName());
+                    newFile.delete();
+                } else {
+                    try {
+                        FileUtils.moveFile(newFile, new File(this.finalPath + "/" + newFile.getName()));
+                        LOG.info("文件:[{}]移动到目录:[{}]成功！", newFile.getName(), this.finalPath);
+                    } catch (IOException e) {
+                        LOG.error("文件:[{}]移动到目录:[{}]失败！", newFile.getName(), this.finalPath, e);
+                    }
+
+                    //boolean b =
+                    //    newFile.renameTo(new File(this.finalPath + "/" + newFile.getName()));
+                    //if (b) {
+                    //    LOG.info("文件:[{}]移动到目录:[{}]成功！", newFile.getName(), this.finalPath);
+                    //} else {
+                    //    LOG.error("文件:[{}]移动到目录:[{}]失败！", newFile.getName(), this.finalPath);
+                    //}
+                }
             }
             LOG.info("end do write");
         }

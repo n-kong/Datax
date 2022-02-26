@@ -4,18 +4,13 @@ import com.alibaba.datax.common.element.StringColumn;
 import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.plugin.TaskPluginCollector;
 import com.alibaba.datax.plugin.writer.odpswriter.util.OdpsUtil;
-
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
-
 import com.aliyun.odps.data.Record;
-
 import com.aliyun.odps.tunnel.TableTunnel;
-
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
-
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,11 +118,15 @@ public class OdpsWriterProxy {
                                     userConfiguredColumnNumber));
         } else if (sourceColumnCount < userConfiguredColumnNumber) {
             if (printColumnLess) {
+                //LOG.warn(
+                //        "源表的列个数小于目的表的列个数，源表列数是:{} 目的表列数是:{} , 数目不匹配. DataX 会把目的端多出的列的值设置为空值. 如果这个默认配置不符合您的期望，请保持源表和目的表配置的列数目保持一致.",
+                //        sourceColumnCount, userConfiguredColumnNumber);
                 LOG.warn(
-                        "源表的列个数小于目的表的列个数，源表列数是:{} 目的表列数是:{} , 数目不匹配. DataX 会把目的端多出的列的值设置为空值. 如果这个默认配置不符合您的期望，请保持源表和目的表配置的列数目保持一致.",
-                        sourceColumnCount, userConfiguredColumnNumber);
+                    "源表的列个数小于目的表的列个数，源表列数是:{} 目的表列数是:{} , 数目不匹配. DataSphere会把此数据认定为脏数据并丢弃.",
+                    sourceColumnCount, userConfiguredColumnNumber);
             }
             printColumnLess = false;
+            return null;
         }
 
         int currentIndex;
@@ -154,7 +153,11 @@ public class OdpsWriterProxy {
                         odpsRecord.setString(currentIndex, columnValue.asString());
                         break;
                     case BIGINT:
-                        odpsRecord.setBigint(currentIndex, columnValue.asLong());
+                        try {
+                            odpsRecord.setBigint(currentIndex, columnValue.asLong());
+                        } catch (Exception e) {
+                            odpsRecord.setBigint(currentIndex, null);
+                        }
                         break;
                     case BOOLEAN:
                         odpsRecord.setBoolean(currentIndex, columnValue.asBoolean());
@@ -163,10 +166,18 @@ public class OdpsWriterProxy {
                         odpsRecord.setDatetime(currentIndex, columnValue.asDate());
                         break;
                     case DOUBLE:
-                        odpsRecord.setDouble(currentIndex, columnValue.asDouble());
+                        try {
+                            odpsRecord.setDouble(currentIndex, columnValue.asDouble());
+                        } catch (Exception e) {
+                            odpsRecord.setDouble(currentIndex, null);
+                        }
                         break;
                     case DECIMAL:
-                        odpsRecord.setDecimal(currentIndex, columnValue.asBigDecimal());
+                        try {
+                            odpsRecord.setDecimal(currentIndex, columnValue.asBigDecimal());
+                        } catch (Exception e) {
+                            odpsRecord.setDecimal(currentIndex, null);
+                        }
                         String columnStr = columnValue.asString();
                         if(columnStr != null && columnStr.indexOf(".") >= 36) {
                             throw new Exception("Odps decimal 类型的整数位个数不能超过35");

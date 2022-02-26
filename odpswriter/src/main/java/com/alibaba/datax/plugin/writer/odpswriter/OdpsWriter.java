@@ -10,7 +10,6 @@ import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.common.util.ListUtil;
 import com.alibaba.datax.plugin.writer.odpswriter.util.IdAndKeyUtil;
 import com.alibaba.datax.plugin.writer.odpswriter.util.OdpsUtil;
-
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.Table;
 import com.aliyun.odps.TableSchema;
@@ -277,6 +276,8 @@ public class OdpsWriter extends Writer {
         @Override
         public void prepare() {
             this.odps = OdpsUtil.initOdpsProject(this.sliceConfig);
+
+            //OdpsUtil.dealTruncate(this.odps, OdpsUtil.getTable(odps,this.projectName,this.tableName), this.partition, this.sliceConfig.getBool(Key.TRUNCATE));
 
             TableTunnel tableTunnel = new TableTunnel(this.odps);
             if (StringUtils.isNoneBlank(tunnelServer)) {

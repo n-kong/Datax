@@ -5,21 +5,23 @@ import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.common.util.RetryUtil;
 import com.alibaba.datax.plugin.writer.odpswriter.Constant;
 import com.alibaba.datax.plugin.writer.odpswriter.Key;
-
 import com.alibaba.datax.plugin.writer.odpswriter.OdpsWriterErrorCode;
 import com.aliyun.odps.*;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.TableTunnel;
-
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 
 public class OdpsUtil {
@@ -63,6 +65,16 @@ public class OdpsUtil {
     public static String formatPartition(String partitionString) {
         if (null == partitionString) {
             return null;
+        }
+        switch (partitionString) {
+            case "ds" :
+                partitionString = "ds=" + TimeUtil.formatDate(new Date());
+                break;
+            case "ds/hh/mm" :
+                String time = TimeUtil.getTime();
+                partitionString = "ds="+time.substring(0, 8)+",hh="+time.substring(8, 10)+",mm="+time.substring(10, 12);
+                break;
+            default:
         }
 
         return partitionString.trim().replaceAll(" *= *", "=").replaceAll(" */ *", ",")

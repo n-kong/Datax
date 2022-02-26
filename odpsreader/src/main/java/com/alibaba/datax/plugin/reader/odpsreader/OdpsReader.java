@@ -8,44 +8,54 @@ import com.alibaba.datax.common.util.FilterUtil;
 import com.alibaba.datax.plugin.reader.odpsreader.util.IdAndKeyUtil;
 import com.alibaba.datax.plugin.reader.odpsreader.util.OdpsSplitUtil;
 import com.alibaba.datax.plugin.reader.odpsreader.util.OdpsUtil;
-import com.aliyun.odps.*;
+import com.alibaba.datax.plugin.reader.odpsreader.util.PartitionUtil;
+import com.aliyun.odps.Column;
+import com.aliyun.odps.Odps;
+import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.Table;
+import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.tunnel.TableTunnel.DownloadSession;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.DateFormatUtils;
+import org.apache.commons.lang3.time.DateUtils;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OdpsReader extends Reader {
     public static class Job extends Reader.Job {
         private static final Logger LOG = LoggerFactory
-                .getLogger(Job.class);
+            .getLogger(Job.class);
 
         private static boolean IS_DEBUG = LOG.isDebugEnabled();
 
         private Configuration originalConfig;
         private Odps odps;
         private Table table;
+        private String projectName;
+        private String tableName;
 
+        @Override
         public void preCheck() {
             this.init();
         }
-
 
         @Override
         public void init() {
             this.originalConfig = super.getPluginJobConf();
 
             //如果用户没有配置accessId/accessKey,尝试从环境变量获取
-            String accountType = originalConfig.getString(Key.ACCOUNT_TYPE, Constant.DEFAULT_ACCOUNT_TYPE);
+            String accountType =
+                originalConfig.getString(Key.ACCOUNT_TYPE, Constant.DEFAULT_ACCOUNT_TYPE);
             if (Constant.DEFAULT_ACCOUNT_TYPE.equalsIgnoreCase(accountType)) {
                 this.originalConfig = IdAndKeyUtil.parseAccessIdAndKey(this.originalConfig);
             }
@@ -59,17 +69,17 @@ public class OdpsReader extends Reader {
             dealSplitMode(this.originalConfig);
 
             this.odps = OdpsUtil.initOdps(this.originalConfig);
-            String tableName = this.originalConfig.getString(Key.TABLE);
-            String projectName = this.originalConfig.getString(Key.PROJECT);
+            tableName = this.originalConfig.getString(Key.TABLE);
+            projectName = this.originalConfig.getString(Key.PROJECT);
 
             this.table = OdpsUtil.getTable(this.odps, projectName, tableName);
             this.originalConfig.set(Constant.IS_PARTITIONED_TABLE,
-                    OdpsUtil.isPartitionedTable(table));
+                OdpsUtil.isPartitionedTable(table));
 
             boolean isVirtualView = this.table.isVirtualView();
             if (isVirtualView) {
                 throw DataXException.asDataXException(OdpsReaderErrorCode.VIRTUAL_VIEW_NOT_SUPPORT,
-                        String.format("源头表:%s 是虚拟视图，DataX 不支持读取虚拟视图.", tableName));
+                    String.format("源头表:%s 是虚拟视图，DataX 不支持读取虚拟视图.", tableName));
             }
 
             this.dealPartition(this.table);
@@ -77,13 +87,15 @@ public class OdpsReader extends Reader {
         }
 
         private void dealSplitMode(Configuration originalConfig) {
-            String splitMode = originalConfig.getString(Key.SPLIT_MODE, Constant.DEFAULT_SPLIT_MODE).trim();
+            String splitMode =
+                originalConfig.getString(Key.SPLIT_MODE, Constant.DEFAULT_SPLIT_MODE).trim();
             if (splitMode.equalsIgnoreCase(Constant.DEFAULT_SPLIT_MODE) ||
-                    splitMode.equalsIgnoreCase(Constant.PARTITION_SPLIT_MODE)) {
+                splitMode.equalsIgnoreCase(Constant.PARTITION_SPLIT_MODE)) {
                 originalConfig.set(Key.SPLIT_MODE, splitMode);
             } else {
                 throw DataXException.asDataXException(OdpsReaderErrorCode.SPLIT_MODE_ERROR,
-                        String.format("您所配置的 splitMode:%s 不正确. splitMode 仅允许配置为 record 或者 partition.", splitMode));
+                    String.format("您所配置的 splitMode:%s 不正确. splitMode 仅允许配置为 record 或者 partition.",
+                        splitMode));
             }
         }
 
@@ -97,70 +109,96 @@ public class OdpsReader extends Reader {
          * </ol>
          */
         private void dealPartition(Table table) {
-            List<String> userConfiguredPartitions = this.originalConfig.getList(
-                    Key.PARTITION, String.class);
 
             boolean isPartitionedTable = this.originalConfig.getBool(Constant.IS_PARTITIONED_TABLE);
             List<String> partitionColumns = new ArrayList<String>();
-
+            List<String> userConfiguredPartitions = new ArrayList<String>();
             if (isPartitionedTable) {
+                // 处理分区配置，分区表，替换分区
+                userConfiguredPartitions = replacePartition(this.originalConfig.getList(
+                    Key.PARTITION, String.class));
                 // 分区表，需要配置分区
                 if (null == userConfiguredPartitions || userConfiguredPartitions.isEmpty()) {
                     throw DataXException.asDataXException(OdpsReaderErrorCode.PARTITION_ERROR,
-                            String.format("分区信息没有配置.由于源头表:%s 为分区表, 所以您需要配置其抽取的表的分区信息. 格式形如:pt=hello,ds=hangzhou，请您参考此格式修改该配置项.",
-                                    table.getName()));
+                        String.format(
+                            "分区信息没有配置.由于源头表:%s 为分区表, 所以您需要配置其抽取的表的分区信息. 格式形如:pt=hello,ds=hangzhou，请您参考此格式修改该配置项.",
+                            table.getName()));
                 } else {
                     List<String> allPartitions = OdpsUtil.getTableAllPartitions(table);
 
                     if (null == allPartitions || allPartitions.isEmpty()) {
                         throw DataXException.asDataXException(OdpsReaderErrorCode.PARTITION_ERROR,
-                                String.format("分区信息配置错误.源头表:%s 虽然为分区表, 但其实际分区值并不存在. 请确认源头表已经生成该分区，再进行数据抽取.",
-                                        table.getName()));
+                            String.format(
+                                "分区信息配置错误.源头表:%s 虽然为分区表, 但其实际分区值并不存在. 请确认源头表已经生成该分区，再进行数据抽取.",
+                                table.getName()));
                     }
 
                     List<String> parsedPartitions = expandUserConfiguredPartition(
-                            allPartitions, userConfiguredPartitions);
+                        allPartitions, userConfiguredPartitions);
 
                     if (null == parsedPartitions || parsedPartitions.isEmpty()) {
                         throw DataXException.asDataXException(
-                                OdpsReaderErrorCode.PARTITION_ERROR,
-                                String.format(
-                                        "分区配置错误，根据您所配置的分区没有匹配到源头表中的分区. 源头表所有分区是:[\n%s\n], 您配置的分区是:[\n%s\n]. 请您根据实际情况在作出修改. ",
-                                        StringUtils.join(allPartitions, "\n"),
-                                        StringUtils.join(userConfiguredPartitions, "\n")));
+                            OdpsReaderErrorCode.PARTITION_ERROR,
+                            String.format(
+                                "分区配置错误，根据您所配置的分区没有匹配到源头表中的分区. 源头表所有分区是:[\n%s\n], 您配置的分区是:[\n%s\n]. 请您根据实际情况在作出修改. ",
+                                StringUtils.join(allPartitions, "\n"),
+                                StringUtils.join(userConfiguredPartitions, "\n")));
                     }
                     this.originalConfig.set(Key.PARTITION, parsedPartitions);
-                    
+
                     for (Column column : table.getSchema()
-                            .getPartitionColumns()) {
+                        .getPartitionColumns()) {
                         partitionColumns.add(column.getName());
                     }
                 }
             } else {
                 // 非分区表，则不能配置分区
                 if (null != userConfiguredPartitions
-                        && !userConfiguredPartitions.isEmpty()) {
+                    && !userConfiguredPartitions.isEmpty()) {
                     throw DataXException.asDataXException(OdpsReaderErrorCode.PARTITION_ERROR,
-                            String.format("分区配置错误，源头表:%s 为非分区表, 您不能配置分区. 请您删除该配置项. ", table.getName()));
+                        String.format("分区配置错误，源头表:%s 为非分区表, 您不能配置分区. 请您删除该配置项. ", table.getName()));
                 }
             }
-            
+
             this.originalConfig.set(Constant.PARTITION_COLUMNS, partitionColumns);
             if (isPartitionedTable) {
                 LOG.info("{源头表:{} 的所有分区列是:[{}]}", table.getName(),
-                        StringUtils.join(partitionColumns, ","));
+                    StringUtils.join(partitionColumns, ","));
             }
         }
 
+        /**
+         * 处理用户输入的分区
+         * @param parts 分区
+         * @return
+         */
+        private List<String> replacePartition(List<String> parts) {
+            List<String> partitions = new ArrayList<String>();
+            for (String part : parts) {
+                // 映射用户配置分区模式
+                part = PartitionUtil.formatPartition(part, odps, projectName, tableName);
+                // 旧处理方式，已有线上任务在使用，暂未去掉
+                if (part.contains("gmtdate")) {
+                    partitions.add(
+                        part.replaceAll("gmtdate", DateFormatUtils.format(new Date(), "yyyyMMdd")));
+                } else if (part.contains("bizdate")) {
+                    partitions.add(part.replaceAll("bizdate", DateFormatUtils.format(DateUtils.addDays(new Date(), -1), "yyyyMMdd")));
+                } else {
+                    partitions.add(part);
+                }
+            }
+            return partitions;
+        }
+
         private List<String> expandUserConfiguredPartition(
-                List<String> allPartitions, List<String> userConfiguredPartitions) {
+            List<String> allPartitions, List<String> userConfiguredPartitions) {
             // 对odps 本身的所有分区进行特殊字符的处理
             List<String> allStandardPartitions = OdpsUtil
-                    .formatPartitions(allPartitions);
+                .formatPartitions(allPartitions);
 
             // 对用户自身配置的所有分区进行特殊字符的处理
             List<String> allStandardUserConfiguredPartitions = OdpsUtil
-                    .formatPartitions(userConfiguredPartitions);
+                .formatPartitions(userConfiguredPartitions);
 
             /**
              *  对配置的分区级数(深度)进行检查
@@ -177,68 +215,92 @@ public class OdpsReader extends Reader {
                 comparedPartitionDepth = comparedPartition.split(",").length;
                 if (comparedPartitionDepth != firstPartitionDepth) {
                     throw DataXException.asDataXException(OdpsReaderErrorCode.PARTITION_ERROR,
-                            String.format("分区配置错误, 您所配置的分区级数和该表的实际情况不一致, 比如分区:[%s] 是 %s 级分区, 而分区:[%s] 是 %s 级分区. DataX 是通过英文逗号判断您所配置的分区级数的. 正确的格式形如\"pt=${bizdate}, type=0\" ，请您参考示例修改该配置项. ",
-                                    firstPartition, firstPartitionDepth, comparedPartition, comparedPartitionDepth));
+                        String.format(
+                            "分区配置错误, 您所配置的分区级数和该表的实际情况不一致, 比如分区:[%s] 是 %s 级分区, 而分区:[%s] 是 %s 级分区. DataX 是通过英文逗号判断您所配置的分区级数的. 正确的格式形如\"pt=${bizdate}, type=0\" ，请您参考示例修改该配置项. ",
+                            firstPartition, firstPartitionDepth, comparedPartition,
+                            comparedPartitionDepth));
                 }
             }
 
             int tableOriginalPartitionDepth = allStandardPartitions.get(0).split(",").length;
             if (firstPartitionDepth != tableOriginalPartitionDepth) {
-                throw DataXException.asDataXException(OdpsReaderErrorCode.PARTITION_ERROR,
-                        String.format("分区配置错误, 您所配置的分区:%s 的级数:%s 与您要读取的 ODPS 源头表的分区级数:%s 不相等. DataX 是通过英文逗号判断您所配置的分区级数的.正确的格式形如\"pt=${bizdate}, type=0\" ，请您参考示例修改该配置项.",
-                                firstPartition, firstPartitionDepth, tableOriginalPartitionDepth));
+                // 根据用户配置的分区信息去匹配表的全部分区
+                allStandardUserConfiguredPartitions =
+                    matchPartitions(allStandardUserConfiguredPartitions, allStandardPartitions);
+                LOG.warn(
+                    "您配置的分区与目标表分区不相等，您所配置的分区：{}的级数：{} 与目标表的分区级数：{}不相等. DataSphere将根据您配置的第一级分区自动匹配目标表分区！",
+                    firstPartition, firstPartitionDepth, tableOriginalPartitionDepth);
+                //throw DataXException.asDataXException(OdpsReaderErrorCode.PARTITION_ERROR,
+                //    String.format(
+                //        "分区配置错误, 您所配置的分区:%s 的级数:%s 与您要读取的 ODPS 源头表的分区级数:%s 不相等. DataX 是通过英文逗号判断您所配置的分区级数的.正确的格式形如\"pt=${bizdate}, type=0\" ，请您参考示例修改该配置项.",
+                //        firstPartition, firstPartitionDepth, tableOriginalPartitionDepth));
             }
 
             List<String> retPartitions = FilterUtil.filterByRegulars(allStandardPartitions,
-                    allStandardUserConfiguredPartitions);
+                allStandardUserConfiguredPartitions);
 
             return retPartitions;
+        }
+
+        private List<String> matchPartitions(List<String> userConfiguredPartitions,
+            List<String> allPartitions) {
+
+            List<String> parts = new ArrayList<String>();
+            for (String allPartition : allPartitions) {
+                for (String userConfiguredPartition : userConfiguredPartitions) {
+                    if (allPartition.split(",")[0]
+                        .equalsIgnoreCase(userConfiguredPartition.split(",")[0])) {
+                        parts.add(allPartition);
+                    }
+                }
+            }
+            return parts;
         }
 
         private void dealColumn(Table table) {
             // 用户配置的 column 之前已经确保其不为空
             List<String> userConfiguredColumns = this.originalConfig.getList(
-                    Key.COLUMN, String.class);
+                Key.COLUMN, String.class);
 
             List<Column> allColumns = OdpsUtil.getTableAllColumns(table);
             List<String> allNormalColumns = OdpsUtil
-                    .getTableOriginalColumnNameList(allColumns);
+                .getTableOriginalColumnNameList(allColumns);
 
             StringBuilder columnMeta = new StringBuilder();
             for (Column column : allColumns) {
-                columnMeta.append(column.getName()).append(":").append(column.getType()).append(",");
+                columnMeta.append(column.getName()).append(":").append(column.getType())
+                    .append(",");
             }
             columnMeta.setLength(columnMeta.length() - 1);
 
             LOG.info("源头表:{} 的所有字段是:[{}]", table.getName(), columnMeta.toString());
 
             if (1 == userConfiguredColumns.size()
-                    && "*".equals(userConfiguredColumns.get(0))) {
-                LOG.warn("这是一条警告信息，您配置的 ODPS 读取的列为*，这是不推荐的行为，因为当您的表字段个数、类型有变动时，可能影响任务正确性甚至会运行出错. 建议您把所有需要抽取的列都配置上. ");
+                && "*".equals(userConfiguredColumns.get(0))) {
+                LOG.warn(
+                    "这是一条警告信息，您配置的 ODPS 读取的列为*，这是不推荐的行为，因为当您的表字段个数、类型有变动时，可能影响任务正确性甚至会运行出错. 建议您把所有需要抽取的列都配置上. ");
                 this.originalConfig.set(Key.COLUMN, allNormalColumns);
             }
 
             userConfiguredColumns = this.originalConfig.getList(
-                    Key.COLUMN, String.class);
+                Key.COLUMN, String.class);
 
             /**
              * warn: 字符串常量需要与表原生字段tableOriginalColumnNameList 分开存放 demo:
              * ["id","'id'","name"]
              */
             List<String> allPartitionColumns = this.originalConfig.getList(
-                    Constant.PARTITION_COLUMNS, String.class);
+                Constant.PARTITION_COLUMNS, String.class);
             List<Pair<String, ColumnType>> parsedColumns = OdpsUtil
-                    .parseColumns(allNormalColumns, allPartitionColumns,
-                            userConfiguredColumns);
-
+                .parseColumns(allNormalColumns, allPartitionColumns,
+                    userConfiguredColumns);
             this.originalConfig.set(Constant.PARSED_COLUMNS, parsedColumns);
-
             StringBuilder sb = new StringBuilder();
             sb.append("[ ");
             for (int i = 0, len = parsedColumns.size(); i < len; i++) {
                 Pair<String, ColumnType> pair = parsedColumns.get(i);
                 sb.append(String.format(" %s : %s", pair.getLeft(),
-                        pair.getRight()));
+                    pair.getRight()));
                 if (i != len - 1) {
                     sb.append(",");
                 }
@@ -246,7 +308,6 @@ public class OdpsReader extends Reader {
             sb.append(" ]");
             LOG.info("parsed column details: {} .", sb.toString());
         }
-
 
         @Override
         public void prepare() {
@@ -282,25 +343,25 @@ public class OdpsReader extends Reader {
         @Override
         public void init() {
             this.readerSliceConf = super.getPluginJobConf();
+
             this.tunnelServer = this.readerSliceConf.getString(
-                    Key.TUNNEL_SERVER, null);
+                Key.TUNNEL_SERVER, null);
 
             this.odps = OdpsUtil.initOdps(this.readerSliceConf);
             this.projectName = this.readerSliceConf.getString(Key.PROJECT);
             this.tableName = this.readerSliceConf.getString(Key.TABLE);
             this.table = OdpsUtil.getTable(this.odps, projectName, tableName);
             this.isPartitionedTable = this.readerSliceConf
-                    .getBool(Constant.IS_PARTITIONED_TABLE);
+                .getBool(Constant.IS_PARTITIONED_TABLE);
             this.sessionId = this.readerSliceConf.getString(Constant.SESSION_ID, null);
-
-
 
             this.isCompress = this.readerSliceConf.getBool(Key.IS_COMPRESS, false);
 
             // sessionId 为空的情况是：切分级别只到 partition 的情况
             if (StringUtils.isBlank(this.sessionId)) {
                 DownloadSession session = OdpsUtil.createMasterSessionForPartitionedTable(odps,
-                        tunnelServer, projectName, tableName, this.readerSliceConf.getString(Key.PARTITION));
+                    tunnelServer, projectName, tableName,
+                    this.readerSliceConf.getString(Key.PARTITION));
                 this.sessionId = session.getId();
             }
 
@@ -317,31 +378,33 @@ public class OdpsReader extends Reader {
             String partition = this.readerSliceConf.getString(Key.PARTITION);
 
             if (this.isPartitionedTable) {
-                downloadSession = OdpsUtil.getSlaveSessionForPartitionedTable(this.odps, this.sessionId,
+                downloadSession =
+                    OdpsUtil.getSlaveSessionForPartitionedTable(this.odps, this.sessionId,
                         this.tunnelServer, this.projectName, this.tableName, partition);
             } else {
-                downloadSession = OdpsUtil.getSlaveSessionForNonPartitionedTable(this.odps, this.sessionId,
+                downloadSession =
+                    OdpsUtil.getSlaveSessionForNonPartitionedTable(this.odps, this.sessionId,
                         this.tunnelServer, this.projectName, this.tableName);
             }
 
             long start = this.readerSliceConf.getLong(Constant.START_INDEX, 0);
             long count = this.readerSliceConf.getLong(Constant.STEP_COUNT,
-                    downloadSession.getRecordCount());
+                downloadSession.getRecordCount());
 
             if (count > 0) {
                 LOG.info(String.format(
-                        "Begin to read ODPS table:%s, partition:%s, startIndex:%s, count:%s.",
-                        this.tableName, partition, start, count));
+                    "Begin to read ODPS table:%s, partition:%s, startIndex:%s, count:%s.",
+                    this.tableName, partition, start, count));
             } else if (count == 0) {
                 LOG.warn(String.format("源头表:%s 的分区:%s 没有内容可抽取, 请您知晓.",
-                        this.tableName, partition));
+                    this.tableName, partition));
                 return;
             } else {
                 throw DataXException.asDataXException(OdpsReaderErrorCode.READ_DATA_FAIL,
-                        String.format("源头表:%s 的分区:%s  读取行数为负数, 请联系 ODPS 管理员查看表状态!",
-                                this.tableName, partition));
+                    String.format("源头表:%s 的分区:%s  读取行数为负数, 请联系 ODPS 管理员查看表状态!",
+                        this.tableName, partition));
             }
-            
+
             TableSchema tableSchema = this.table.getSchema();
             Set<Column> allColumns = new HashSet<Column>();
             allColumns.addAll(tableSchema.getColumns());
@@ -354,29 +417,35 @@ public class OdpsReader extends Reader {
 
             try {
                 List<Configuration> parsedColumnsTmp = this.readerSliceConf
-                        .getListConfiguration(Constant.PARSED_COLUMNS);
+                    .getListConfiguration(Constant.PARSED_COLUMNS);
                 List<Pair<String, ColumnType>> parsedColumns = new ArrayList<Pair<String, ColumnType>>();
                 for (int i = 0; i < parsedColumnsTmp.size(); i++) {
                     Configuration eachColumnConfig = parsedColumnsTmp.get(i);
-                    String columnName = eachColumnConfig.getString("left");
-                    ColumnType columnType = ColumnType
-                            .asColumnType(eachColumnConfig.getString("right"));
-                    parsedColumns.add(new MutablePair<String, ColumnType>(
+                    for (String columnName : eachColumnConfig.getKeys()) {
+                        ColumnType columnType = ColumnType.asColumnType(eachColumnConfig.getString(columnName));
+                        parsedColumns.add(new MutablePair<String, ColumnType>(
                             columnName, columnType));
-
+                    }
+                    // 原始写法，本地测试取不到数据
+                    //String columnName = eachColumnConfig.getString("left");
+                    //ColumnType columnType = ColumnType
+                    //    .asColumnType(eachColumnConfig.getString("right"));
+                    //parsedColumns.add(new MutablePair<String, ColumnType>(
+                    //    columnName, columnType));
                 }
+
+
                 ReaderProxy readerProxy = new ReaderProxy(recordSender, downloadSession,
-                        columnTypeMap, parsedColumns, partition, this.isPartitionedTable,
-                        start, count, this.isCompress);
+                    columnTypeMap, parsedColumns, partition, this.isPartitionedTable,
+                    start, count, this.isCompress);
 
                 readerProxy.doRead();
             } catch (Exception e) {
                 throw DataXException.asDataXException(OdpsReaderErrorCode.READ_DATA_FAIL,
-                        String.format("源头表:%s 的分区:%s 读取失败, 请联系 ODPS 管理员查看错误详情.", this.tableName, partition), e);
+                    String.format("源头表:%s 的分区:%s 读取失败, 请联系 ODPS 管理员查看错误详情.", this.tableName,
+                        partition), e);
             }
-
         }
-
 
         @Override
         public void post() {
@@ -385,6 +454,5 @@ public class OdpsReader extends Reader {
         @Override
         public void destroy() {
         }
-
     }
 }

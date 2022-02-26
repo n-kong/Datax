@@ -36,7 +36,7 @@ public class DateUtil {
 
         synchronized (dateFormatThreadLocal) {
             if (dateFormatMap == null) {
-                dateFormatMap = new HashMap<>();
+                dateFormatMap = new HashMap<String, DateFormat>();
             }
             dateFormatMap.put(pattern, new SimpleDateFormat(pattern));
             dateFormatThreadLocal.set(dateFormatMap);

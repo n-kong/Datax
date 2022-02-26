@@ -34,13 +34,13 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk15on</artifactId>
             <version>1.52</version>
-            <scope>system</scope>
-            <systemPath>${basedir}/src/main/libs/bcprov-jdk15on-1.52.jar</systemPath>
+<!--            <scope>system</scope>-->
+<!--            <systemPath>${basedir}/src/main/libs/bcprov-jdk15on-1.52.jar</systemPath>-->
         </dependency>
         <dependency>
 			<groupId>com.aliyun.odps</groupId>
 			<artifactId>odps-sdk-core</artifactId>
-			<version>0.20.7-public</version>
+			<version>0.38.3-public</version> <!--0.19.3-->
 		</dependency>
 
         <!-- httpclient begin -->
@@ -78,8 +78,8 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>${jdk-version}</source>
-                    <target>${jdk-version}</target>
+                    <source>1.6</source>
+                    <target>1.6</target>
                     <encoding>${project-sourceEncoding}</encoding>
                 </configuration>
             </plugin>
@@ -102,6 +102,14 @@
                     </execution>
                 </executions>
             </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <source>1.7</source>
+              <target>1.7</target>
+            </configuration>
+          </plugin>
         </plugins>
     </build>
 </project>
