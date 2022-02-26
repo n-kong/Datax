@@ -1,0 +1,10 @@
+{
+    "name": "solrreader",
+    "parameter": {
+        "url": "",
+        "column": ["",""],
+        "batchSize": 1024,
+        "keywords": "",
+        "splitNum": 10
+    }
+}

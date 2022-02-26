@@ -1,0 +1,10 @@
+{
+    "name": "datahubreader",
+    "parameter": {
+        "project": "",
+        "table": "",
+        "column": [],
+        "accessId": "",
+        "accessKey": "",
+    }
+}

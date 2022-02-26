@@ -1,0 +1,11 @@
+{
+    "name": "bkwriter",
+    "parameter": {
+        "tmpPath": "",
+        "path": "",
+        "fileName": "",
+        "writeMode": "",
+        "fieldDelimiter":"",
+        "dateFormat": ""
+    }
+}

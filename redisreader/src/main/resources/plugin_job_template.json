@@ -1,0 +1,11 @@
+{
+    "name": "redisreader",
+    "parameter": {
+        "host": "",
+        "port": "",
+        "auth": "",
+        "column": "",
+        "bathSize": "",
+        "dbIndex": ""
+    }
+}

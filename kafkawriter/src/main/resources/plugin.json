@@ -1,0 +1,6 @@
+{
+    "name": "kafkawriter",
+    "class": "com.zcreate.datax.plugin.writer.kafkawriter.KafkaWriter",
+    "description": "write data to kafka",
+    "developer": "zcreator"
+}

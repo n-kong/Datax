@@ -1,0 +1,10 @@
+{
+  "name": "datahubreader",
+  "class": "com.alibaba.datax.plugin.reader.datahubreader.DatahubReader",
+  "description": {
+    "useScene": "prod.",
+    "mechanism": "TODO",
+    "warn": "TODO"
+  },
+  "developer": "alibaba"
+}

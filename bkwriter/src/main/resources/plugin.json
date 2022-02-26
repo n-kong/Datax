@@ -1,0 +1,6 @@
+{
+    "name": "bkwriter",
+    "class": "com.alibaba.datax.plugin.writer.bkwriter.BkWriter",
+    "description": "",
+    "developer": "alibaba"
+}

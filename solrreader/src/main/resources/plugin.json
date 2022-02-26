@@ -1,0 +1,6 @@
+{
+    "name": "solrreader",
+    "class": "com.alibaba.datax.plugin.reader.solrreader.SolrReader",
+    "description": "solr.",
+    "developer": "alibaba"
+}
